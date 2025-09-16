@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ConfigForm from './components/ConfigForm'
 import TestRunner from './components/TestRunner'
 import ResultsPanel from './components/ResultsPanel'
+import { runValidation } from './utils/ValidationService.js'
 
 function App() {
   const [testConfig, setTestConfig] = useState({
@@ -23,60 +24,36 @@ function App() {
     setTestConfig(newConfig)
   }
 
-  const handleStartValidation = () => {
+  const handleStartValidation = async () => {
     setValidationState({
       isRunning: true,
       results: null,
       error: null
     })
     
-    // TODO: Implement actual validation logic
-    // For now, simulate validation process
-    setTimeout(() => {
+    try {
+      const results = await runValidation(testConfig)
+      
+      if (results.status === 'error') {
+        setValidationState({
+          isRunning: false,
+          results: null,
+          error: results.error
+        })
+      } else {
+        setValidationState({
+          isRunning: false,
+          results: results,
+          error: null
+        })
+      }
+    } catch (error) {
       setValidationState({
         isRunning: false,
-        results: {
-          timestamp: new Date().toISOString(),
-          endpoint: testConfig.apiUrl,
-          method: testConfig.httpMethod,
-          status: 'completed',
-          summary: {
-            total: 5,
-            passed: 4,
-            failed: 1,
-            warnings: 0
-          },
-          details: [
-            {
-              test: 'Content-Type Header',
-              status: 'passed',
-              message: 'Content-Type is application/vnd.api+json'
-            },
-            {
-              test: 'Response Structure',
-              status: 'passed',
-              message: 'Response has valid JSON:API document structure'
-            },
-            {
-              test: 'Resource Object',
-              status: 'passed',
-              message: 'Resource objects contain required id and type fields'
-            },
-            {
-              test: 'Meta Information',
-              status: 'passed',
-              message: 'Meta object is properly formatted'
-            },
-            {
-              test: 'Error Handling',
-              status: 'failed',
-              message: 'Error responses do not follow JSON:API error format'
-            }
-          ]
-        },
-        error: null
+        results: null,
+        error: `Validation failed: ${error.message}`
       })
-    }, 2000)
+    }
   }
 
   const handleReset = () => {
