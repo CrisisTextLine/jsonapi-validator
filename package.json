@@ -1,0 +1,23 @@
+{
+  "name": "jsonapi-validator",
+  "version": "1.0.0",
+  "description": "A single-page application that validates JSON:API v1.1 specification compliance",
+  "main": "index.js",
+  "scripts": {
+    "start": "node mock-server/server.js",
+    "dev": "node mock-server/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "jsonapi",
+    "validator",
+    "testing",
+    "mock-server"
+  ],
+  "author": "Crisis Text Line",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}

@@ -163,6 +163,7 @@ This validator aims for complete compliance with the [JSON:API v1.1 specificatio
 - [x] Repository setup and initial documentation
 - [x] GitHub Copilot instructions configuration
 - [x] Architecture planning and documentation
+- [x] Mock server implementation for testing
 - [ ] Core validation engine implementation
 - [ ] Individual validation rules implementation
 - [ ] CLI interface development
@@ -171,6 +172,36 @@ This validator aims for complete compliance with the [JSON:API v1.1 specificatio
 - [ ] Documentation and examples
 - [ ] Performance optimization
 - [ ] Release preparation
+
+## Quick Start
+
+### Mock Server (Available Now)
+
+A fully functional JSON:API v1.1 compliant mock server is available for testing and development:
+
+```bash
+# Install dependencies
+npm install
+
+# Start the mock server
+npm start
+
+# Visit the API
+open http://localhost:3000
+```
+
+The mock server provides:
+- Complete CRUD operations for articles, people, and comments
+- Relationship handling and compound documents
+- Pagination, sorting, and sparse fieldsets
+- Proper error responses and content-type validation
+- Test endpoints with intentionally invalid responses
+
+See [mock-server/README.md](mock-server/README.md) for comprehensive documentation.
+
+### Validator Application (Planned)
+
+The main validator application is planned as a single-page web application that will use the mock server for development and testing.
 
 ## Contributing
 
