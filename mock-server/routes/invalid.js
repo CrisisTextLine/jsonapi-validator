@@ -144,4 +144,44 @@ router.get('/invalid/status-mismatch', (req, res) => {
   });
 });
 
+// Invalid endpoint: Invalid link formats
+router.get('/invalid/bad-links', (req, res) => {
+  res.json({
+    jsonapi: { version: '1.1' },
+    data: [{
+      id: '1',
+      type: 'articles',
+      attributes: { title: 'Article with bad links' },
+      links: {
+        self: 'bad url with spaces',
+        edit: {
+          href: '',
+          meta: { editable: true },
+          extraField: 'not allowed'
+        }
+      },
+      relationships: {
+        author: {
+          links: {
+            self: 'ht<tp://malformed url',
+            related: {
+              href: 'another bad url',
+              invalidMember: 'should not be here'
+            }
+          },
+          data: { type: 'people', id: '42' }
+        }
+      }
+    }],
+    links: {
+      self: 'document url with spaces',
+      first: {
+        href: 'https://example.com/<invalid>',
+        meta: { page: 1 },
+        notAllowed: 'extra field'
+      }
+    }
+  });
+});
+
 export { router as invalidRouter };
