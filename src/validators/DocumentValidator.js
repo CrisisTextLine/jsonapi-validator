@@ -6,6 +6,7 @@
  */
 
 import { validateResourceObject, validateResourceCollection } from './ResourceValidator.js'
+import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
 
 /**
  * Validates a JSON:API document's top-level structure
@@ -276,29 +277,181 @@ function validateLinksMember(links) {
     return results
   }
 
-  // Basic validation - links should be an object with string or object values
   const linkKeys = Object.keys(links)
-  let validLinks = true
+  let allLinksValid = true
   
-  for (const key of linkKeys) {
-    const linkValue = links[key]
-    if (typeof linkValue !== 'string' && (typeof linkValue !== 'object' || linkValue === null)) {
-      validLinks = false
-      break
+  // Common pagination link names for document-level links
+  const paginationLinks = ['first', 'last', 'prev', 'next', 'self', 'related']
+  
+  for (const linkName of linkKeys) {
+    const linkValue = links[linkName]
+    const context = `links.${linkName}`
+    
+    // Validate the link value (string, link object, or null)
+    const linkValidation = validateDocumentLinkValue(linkValue, context, linkName)
+    results.details.push(...linkValidation.details)
+    if (!linkValidation.valid) {
+      allLinksValid = false
+      results.errors.push(...linkValidation.errors)
     }
   }
 
-  if (validLinks) {
+  if (allLinksValid) {
+    const knownLinks = linkKeys.filter(key => paginationLinks.includes(key))
+    const customLinks = linkKeys.filter(key => !paginationLinks.includes(key))
+    
+    let message = `Links object contains ${linkKeys.length} valid link(s)`
+    if (knownLinks.length > 0) {
+      message += ` (includes: ${knownLinks.join(', ')})`
+    }
+    if (customLinks.length > 0) {
+      message += ` (custom links: ${customLinks.join(', ')})`
+    }
+    
     results.details.push({
       test: 'Links Member Structure',
       status: 'passed', 
-      message: `Links object contains ${linkKeys.length} valid link(s)`
+      message
     })
   } else {
     results.valid = false
+  }
+
+  return results
+}
+
+/**
+ * Validates a single document-level link value
+ * @param {any} link - The link value to validate
+ * @param {string} context - Context for error messages
+ * @param {string} linkName - Name of the link being validated
+ * @returns {Object} Validation result
+ */
+function validateDocumentLinkValue(link, context, linkName) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  if (link === null) {
+    results.details.push({
+      test: 'Document Link Value',
+      status: 'passed',
+      context,
+      message: 'Link value is null (valid for indicating no link available)'
+    })
+    return results
+  }
+
+  if (typeof link === 'string') {
+    if (link.length === 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Document Link Value',
+        context,
+        message: 'Link string cannot be empty'
+      })
+    } else {
+      // Validate URL format
+      if (!isValidUrl(link)) {
+        const urlError = getUrlValidationError(link)
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link URL Format',
+          context,
+          message: urlError || 'Document link URL format is invalid'
+        })
+      } else {
+        results.details.push({
+          test: 'Document Link Value',
+          status: 'passed',
+          context,
+          message: `Document link "${linkName}" URL format is valid`
+        })
+      }
+    }
+  } else if (typeof link === 'object' && !Array.isArray(link)) {
+    // Link object must have href member
+    if (!Object.prototype.hasOwnProperty.call(link, 'href')) {
+      results.valid = false
+      results.errors.push({
+        test: 'Document Link Object Structure',
+        context,
+        message: 'Document link object must have an "href" member'
+      })
+    } else if (typeof link.href !== 'string' || link.href.length === 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Document Link Object Structure',
+        context,
+        message: 'Document link object "href" must be a non-empty string'
+      })
+    } else {
+      // Validate href URL format
+      if (!isValidUrl(link.href)) {
+        const urlError = getUrlValidationError(link.href)
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link Object URL Format',
+          context,
+          message: urlError || 'Document link object "href" URL format is invalid'
+        })
+      } else {
+        results.details.push({
+          test: 'Document Link Object Structure',
+          status: 'passed',
+          context,
+          message: `Document link "${linkName}" href URL format is valid`
+        })
+      }
+    }
+
+    // Validate optional meta member
+    if (Object.prototype.hasOwnProperty.call(link, 'meta')) {
+      if (typeof link.meta !== 'object' || link.meta === null || Array.isArray(link.meta)) {
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link Object Meta',
+          context,
+          message: 'Document link object "meta" must be an object'
+        })
+      } else {
+        results.details.push({
+          test: 'Document Link Object Meta',
+          status: 'passed',
+          context,
+          message: `Document link "${linkName}" meta structure is valid`
+        })
+      }
+    }
+
+    // Check for additional members beyond href and meta
+    const linkKeys = Object.keys(link)
+    const allowedMembers = ['href', 'meta']
+    const additionalMembers = linkKeys.filter(key => !allowedMembers.includes(key))
+    
+    if (additionalMembers.length > 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Document Link Object Additional Members',
+        context,
+        message: `Document link object contains additional members not allowed: ${additionalMembers.join(', ')}. Only "href" and "meta" are allowed`
+      })
+    } else if (results.valid) {
+      results.details.push({
+        test: 'Document Link Object Structure',
+        status: 'passed',
+        context,
+        message: `Document link "${linkName}" object structure is valid`
+      })
+    }
+  } else {
+    results.valid = false
     results.errors.push({
-      test: 'Links Member Structure',
-      message: 'Links object contains invalid link values'
+      test: 'Document Link Value',
+      context,
+      message: 'Document link must be a string, link object, or null'
     })
   }
 

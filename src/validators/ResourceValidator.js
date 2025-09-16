@@ -5,6 +5,8 @@
  * Based on specification: https://jsonapi.org/format/1.1/#document-resource-objects
  */
 
+import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
+
 /**
  * Validates a single resource object for JSON:API compliance
  * @param {any} resource - The resource object to validate
@@ -716,12 +718,23 @@ function validateLinkValue(link, context) {
         message: 'Link string cannot be empty'
       })
     } else {
-      results.details.push({
-        test: 'Link Value',
-        status: 'passed',
-        context,
-        message: 'Link string is valid'
-      })
+      // Validate URL format
+      if (!isValidUrl(link)) {
+        const urlError = getUrlValidationError(link)
+        results.valid = false
+        results.errors.push({
+          test: 'Link URL Format',
+          context,
+          message: urlError || 'Link URL format is invalid'
+        })
+      } else {
+        results.details.push({
+          test: 'Link Value',
+          status: 'passed',
+          context,
+          message: 'Link string URL format is valid'
+        })
+      }
     }
   } else if (typeof link === 'object' && !Array.isArray(link)) {
     // Link object must have href member
@@ -740,6 +753,57 @@ function validateLinkValue(link, context) {
         message: 'Link object "href" must be a non-empty string'
       })
     } else {
+      // Validate href URL format
+      if (!isValidUrl(link.href)) {
+        const urlError = getUrlValidationError(link.href)
+        results.valid = false
+        results.errors.push({
+          test: 'Link Object URL Format',
+          context,
+          message: urlError || 'Link object "href" URL format is invalid'
+        })
+      } else {
+        results.details.push({
+          test: 'Link Object Structure',
+          status: 'passed',
+          context,
+          message: 'Link object "href" URL format is valid'
+        })
+      }
+    }
+
+    // Validate optional meta member
+    if (Object.prototype.hasOwnProperty.call(link, 'meta')) {
+      if (typeof link.meta !== 'object' || link.meta === null || Array.isArray(link.meta)) {
+        results.valid = false
+        results.errors.push({
+          test: 'Link Object Meta',
+          context,
+          message: 'Link object "meta" must be an object'
+        })
+      } else {
+        results.details.push({
+          test: 'Link Object Meta',
+          status: 'passed',
+          context,
+          message: 'Link object "meta" structure is valid'
+        })
+      }
+    }
+
+    // Check for additional members beyond href and meta
+    const linkKeys = Object.keys(link)
+    const allowedMembers = ['href', 'meta']
+    const additionalMembers = linkKeys.filter(key => !allowedMembers.includes(key))
+    
+    if (additionalMembers.length > 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Link Object Additional Members',
+        context,
+        message: `Link object contains additional members not allowed: ${additionalMembers.join(', ')}. Only "href" and "meta" are allowed`
+      })
+    } else if (results.valid) {
       results.details.push({
         test: 'Link Object Structure',
         status: 'passed',
@@ -864,7 +928,7 @@ function validateResourceLinksMember(links, context) {
 
   // Resource objects commonly have a 'self' link
   let hasSelfLink = false
-  let validLinks = true
+  let allLinksValid = true
 
   for (const linkName of linkKeys) {
     const linkValue = links[linkName]
@@ -873,18 +937,16 @@ function validateResourceLinksMember(links, context) {
       hasSelfLink = true
     }
 
-    // Links can be strings or objects
-    if (typeof linkValue !== 'string' && (typeof linkValue !== 'object' || linkValue === null)) {
-      validLinks = false
-      results.errors.push({
-        test: 'Resource Link Structure',
-        context,
-        message: `Link "${linkName}" must be a string URL or link object`
-      })
+    // Validate each link using the comprehensive validateLinkValue function
+    const linkValidation = validateLinkValue(linkValue, `${context}.links.${linkName}`)
+    results.details.push(...linkValidation.details)
+    if (!linkValidation.valid) {
+      allLinksValid = false
+      results.errors.push(...linkValidation.errors)
     }
   }
 
-  if (validLinks) {
+  if (allLinksValid) {
     const selfMessage = hasSelfLink ? ' (includes recommended "self" link)' : ''
     results.details.push({
       test: 'Resource Links Member',
@@ -892,6 +954,7 @@ function validateResourceLinksMember(links, context) {
       context,
       message: `Resource links object contains ${linkKeys.length} valid link(s)${selfMessage}`
     })
+    results.valid = true
   } else {
     results.valid = false
   }
