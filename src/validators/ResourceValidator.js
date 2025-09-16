@@ -357,9 +357,17 @@ function validateRelationshipsMember(relationships, context) {
     return results
   }
 
-  // Validate each relationship object
+  // Validate each relationship object and its name
   let allRelationshipsValid = true
   for (const relationshipName of relationshipKeys) {
+    // Validate relationship name follows JSON:API member naming rules
+    const nameValidation = validateMemberName(relationshipName, `${context}.relationships.${relationshipName}`)
+    results.details.push(...nameValidation.details)
+    if (!nameValidation.valid) {
+      allRelationshipsValid = false
+      results.errors.push(...nameValidation.errors)
+    }
+
     const relationship = relationships[relationshipName]
     const relationshipValidation = validateRelationshipObject(relationship, `${context}.relationships.${relationshipName}`)
     
@@ -433,15 +441,13 @@ function validateRelationshipObject(relationship, context) {
     }
   }
 
-  // Validate links member if present (basic validation for now)
+  // Validate links member if present
   if (hasLinks) {
-    if (typeof relationship.links !== 'object' || relationship.links === null) {
+    const linksValidation = validateRelationshipLinks(relationship.links, context)
+    results.details.push(...linksValidation.details)
+    if (!linksValidation.valid) {
       results.valid = false
-      results.errors.push({
-        test: 'Relationship Links Structure',
-        context,
-        message: 'Relationship "links" must be an object'
-      })
+      results.errors.push(...linksValidation.errors)
     }
   }
 
@@ -590,6 +596,235 @@ function validateResourceIdentifier(identifier, context) {
       message: `Resource identifier (type: "${identifier.type}", id: "${identifier.id}") is valid`
     })
   }
+
+  return results
+}
+
+/**
+ * Validates relationship links object
+ * @param {any} links - The links object to validate
+ * @param {string} context - Context for error messages
+ * @returns {Object} Validation result
+ */
+function validateRelationshipLinks(links, context) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  if (typeof links !== 'object' || links === null) {
+    results.valid = false
+    results.errors.push({
+      test: 'Relationship Links Structure',
+      context,
+      message: 'Relationship "links" must be an object'
+    })
+    return results
+  }
+
+  const linkKeys = Object.keys(links)
+  
+  // A relationship links object must contain at least one of: self, related, or pagination links
+  const hasSelf = Object.prototype.hasOwnProperty.call(links, 'self')
+  const hasRelated = Object.prototype.hasOwnProperty.call(links, 'related')
+  const hasPagination = linkKeys.some(key => ['first', 'last', 'prev', 'next'].includes(key))
+
+  if (!hasSelf && !hasRelated && !hasPagination) {
+    results.valid = false
+    results.errors.push({
+      test: 'Relationship Links Content',
+      context,
+      message: 'Relationship links object should contain at least one of: "self", "related", or pagination links'
+    })
+  }
+
+  // Validate self link if present
+  if (hasSelf) {
+    const selfValidation = validateLinkValue(links.self, `${context}.links.self`)
+    results.details.push(...selfValidation.details)
+    if (!selfValidation.valid) {
+      results.valid = false
+      results.errors.push(...selfValidation.errors)
+    }
+  }
+
+  // Validate related link if present
+  if (hasRelated) {
+    const relatedValidation = validateLinkValue(links.related, `${context}.links.related`)
+    results.details.push(...relatedValidation.details)
+    if (!relatedValidation.valid) {
+      results.valid = false
+      results.errors.push(...relatedValidation.errors)
+    }
+  }
+
+  // Validate pagination links for to-many relationships
+  const paginationLinks = ['first', 'last', 'prev', 'next']
+  for (const paginationLink of paginationLinks) {
+    if (Object.prototype.hasOwnProperty.call(links, paginationLink)) {
+      const paginationValidation = validateLinkValue(links[paginationLink], `${context}.links.${paginationLink}`)
+      results.details.push(...paginationValidation.details)
+      if (!paginationValidation.valid) {
+        results.valid = false
+        results.errors.push(...paginationValidation.errors)
+      }
+    }
+  }
+
+  if (results.valid) {
+    results.details.push({
+      test: 'Relationship Links Structure',
+      status: 'passed',
+      context,
+      message: `Relationship links object contains valid link(s): ${linkKeys.join(', ')}`
+    })
+  }
+
+  return results
+}
+
+/**
+ * Validates a single link value (string or link object)
+ * @param {any} link - The link value to validate
+ * @param {string} context - Context for error messages
+ * @returns {Object} Validation result
+ */
+function validateLinkValue(link, context) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  if (link === null) {
+    results.details.push({
+      test: 'Link Value',
+      status: 'passed',
+      context,
+      message: 'Link value is null (valid for indicating no link available)'
+    })
+    return results
+  }
+
+  if (typeof link === 'string') {
+    if (link.length === 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Link Value',
+        context,
+        message: 'Link string cannot be empty'
+      })
+    } else {
+      results.details.push({
+        test: 'Link Value',
+        status: 'passed',
+        context,
+        message: 'Link string is valid'
+      })
+    }
+  } else if (typeof link === 'object' && !Array.isArray(link)) {
+    // Link object must have href member
+    if (!Object.prototype.hasOwnProperty.call(link, 'href')) {
+      results.valid = false
+      results.errors.push({
+        test: 'Link Object Structure',
+        context,
+        message: 'Link object must have an "href" member'
+      })
+    } else if (typeof link.href !== 'string' || link.href.length === 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Link Object Structure',
+        context,
+        message: 'Link object "href" must be a non-empty string'
+      })
+    } else {
+      results.details.push({
+        test: 'Link Object Structure',
+        status: 'passed',
+        context,
+        message: 'Link object structure is valid'
+      })
+    }
+  } else {
+    results.valid = false
+    results.errors.push({
+      test: 'Link Value',
+      context,
+      message: 'Link must be a string, link object, or null'
+    })
+  }
+
+  return results
+}
+
+/**
+ * Validates a member name follows JSON:API naming conventions
+ * @param {string} memberName - The member name to validate
+ * @param {string} context - Context for error messages
+ * @returns {Object} Validation result
+ */
+function validateMemberName(memberName, context) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  if (typeof memberName !== 'string') {
+    results.valid = false
+    results.errors.push({
+      test: 'Member Name Structure',
+      context,
+      message: 'Member name must be a string'
+    })
+    return results
+  }
+
+  if (memberName.length === 0) {
+    results.valid = false
+    results.errors.push({
+      test: 'Member Name Structure',
+      context,
+      message: 'Member name cannot be empty'
+    })
+    return results
+  }
+
+  // JSON:API spec: Member names MUST contain at least one character.
+  // Member names MUST contain only the allowed characters a-z, A-Z, 0-9, hyphen, and underscore.
+  // Member names MUST start and end with a "globally allowed character" (a-z, A-Z, 0-9).
+  const memberNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/
+  
+  if (!memberNamePattern.test(memberName)) {
+    results.valid = false
+    results.errors.push({
+      test: 'Member Name Format',
+      context,
+      message: `Member name "${memberName}" must start and end with alphanumeric characters and contain only letters, numbers, hyphens, and underscores`
+    })
+    return results
+  }
+
+  // Check for reserved member names that should not be used for relationships
+  const reservedNames = ['type', 'id', 'attributes', 'relationships', 'links', 'meta', 'data', 'errors', 'included', 'jsonapi']
+  if (reservedNames.includes(memberName)) {
+    results.valid = false
+    results.errors.push({
+      test: 'Member Name Reserved',
+      context,
+      message: `Member name "${memberName}" is reserved and should not be used for relationships`
+    })
+    return results
+  }
+
+  results.details.push({
+    test: 'Member Name Format',
+    status: 'passed',
+    context,
+    message: `Member name "${memberName}" follows JSON:API naming conventions`
+  })
 
   return results
 }
