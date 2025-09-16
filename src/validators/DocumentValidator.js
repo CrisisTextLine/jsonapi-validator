@@ -5,6 +5,8 @@
  * Based on specification: https://jsonapi.org/format/1.1/
  */
 
+import { validateResourceObject, validateResourceCollection } from './ResourceValidator.js'
+
 /**
  * Validates a JSON:API document's top-level structure
  * @param {any} response - The response object to validate
@@ -151,6 +153,7 @@ function validateDataMember(data) {
   const results = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -174,43 +177,27 @@ function validateDataMember(data) {
         message: 'Data is empty array (valid for empty collection)'
       })
     } else {
-      // Validate each resource object in collection
-      let allResourcesValid = true
-      for (let i = 0; i < data.length; i++) {
-        if (!isValidResourceObject(data[i])) {
-          allResourcesValid = false
-          break
-        }
-      }
-      
-      if (allResourcesValid) {
-        results.details.push({
-          test: 'Data Member Structure',
-          status: 'passed',
-          message: `Data is array of ${data.length} resource objects`
-        })
-      } else {
+      // Validate resource collection using comprehensive ResourceValidator
+      const collectionValidation = validateResourceCollection(data, { context: 'data' })
+      results.details.push(...collectionValidation.details)
+      if (!collectionValidation.valid) {
         results.valid = false
-        results.errors.push({
-          test: 'Data Member Structure',
-          message: 'Data array contains invalid resource objects'
-        })
+        results.errors.push(...collectionValidation.errors)
+      }
+      if (collectionValidation.warnings) {
+        results.warnings.push(...collectionValidation.warnings)
       }
     }
   } else if (typeof data === 'object') {
-    // Single resource object
-    if (isValidResourceObject(data)) {
-      results.details.push({
-        test: 'Data Member Structure',
-        status: 'passed',
-        message: 'Data is valid single resource object'
-      })
-    } else {
+    // Single resource object - use comprehensive ResourceValidator
+    const resourceValidation = validateResourceObject(data, { context: 'data' })
+    results.details.push(...resourceValidation.details)
+    if (!resourceValidation.valid) {
       results.valid = false
-      results.errors.push({
-        test: 'Data Member Structure',
-        message: 'Data is not a valid resource object'
-      })
+      results.errors.push(...resourceValidation.errors)
+    }
+    if (resourceValidation.warnings) {
+      results.warnings.push(...resourceValidation.warnings)
     }
   } else {
     results.valid = false
@@ -223,18 +210,7 @@ function validateDataMember(data) {
   return results
 }
 
-/**
- * Basic check if an object has the minimal structure of a resource object
- * @param {any} obj - Object to check
- * @returns {boolean} True if has basic resource object structure
- */
-function isValidResourceObject(obj) {
-  return obj !== null &&
-         typeof obj === 'object' &&
-         typeof obj.type === 'string' &&
-         obj.type.length > 0 &&
-         (Object.prototype.hasOwnProperty.call(obj, 'id') ? typeof obj.id === 'string' : true)
-}
+
 
 /**
  * Validates the included member
@@ -265,27 +241,15 @@ function validateIncludedMember(included) {
     })
   }
 
-  // Validate each resource in included array
-  let allResourcesValid = true
-  for (let i = 0; i < included.length; i++) {
-    if (!isValidResourceObject(included[i])) {
-      allResourcesValid = false
-      break
-    }
-  }
-
-  if (allResourcesValid) {
-    results.details.push({
-      test: 'Included Member Structure',
-      status: 'passed',
-      message: `Included array contains ${included.length} valid resource objects`
-    })
-  } else {
+  // Validate each resource in included array using comprehensive ResourceValidator
+  const collectionValidation = validateResourceCollection(included, { context: 'included' })
+  results.details.push(...collectionValidation.details)
+  if (!collectionValidation.valid) {
     results.valid = false
-    results.errors.push({
-      test: 'Included Member Structure',
-      message: 'Included array contains invalid resource objects'
-    })
+    results.errors.push(...collectionValidation.errors)
+  }
+  if (collectionValidation.warnings) {
+    results.warnings.push(...collectionValidation.warnings)
   }
 
   return results
