@@ -2,135 +2,126 @@
 
 ## Repository Overview
 
-This repository contains a JSON:API v1.1 specification validator designed to ensure API endpoint compliance with the JSON:API standard (https://jsonapi.org/format/). The validator helps developers and organizations verify that their APIs correctly implement the JSON:API specification.
+**What this repository does**: A single-page application (SPA) that validates JSON:API v1.1 specification compliance by acting as a client to test any JSON:API implementation. It generates conformant requests and validates responses through multi-step CRUD workflows (GET collection → GET individual → POST create → PATCH update → DELETE cleanup).
 
-## Development Guidelines
+**Repository details**:
+- **Size**: Very small repository in early development stage
+- **Type**: Web-based single-page application project  
+- **Primary languages**: JavaScript/TypeScript (planned)
+- **Framework**: React or Vue.js (to be determined)
+- **Target runtime**: Modern web browsers
+- **Backend compatibility**: Any JSON:API implementation (Go, Node.js, Python, etc.)
 
-### Project Purpose and Scope
+## Build and Validation Instructions
 
-- **Primary Goal**: Validate JSON:API v1.1 spec compliance for any given API endpoint
-- **Target Audience**: API developers, QA engineers, and DevOps teams
-- **Validation Scope**: Request and response validation, content-type checking, structure validation, relationship validation
+### Current Development Stage
+This repository is in early planning phase with only documentation files. No build system, dependencies, or source code exist yet.
 
-### Code Style and Architecture
+**Current files**:
+- `README.md` - Project documentation and planned approach
+- `LICENSE` - MIT license from Crisis Text Line
+- `.github/copilot-instructions.md` - This file
 
-- Follow modern JavaScript/TypeScript best practices
-- Use functional programming patterns where appropriate
-- Implement comprehensive error handling and meaningful error messages
-- Design with extensibility in mind for future JSON:API spec versions
-- Prioritize performance for high-volume validation scenarios
+### Expected Build Setup (When Implementation Begins)
 
-### JSON:API Specification Focus Areas
+**Bootstrap sequence** (anticipated):
+1. `npm init` - Initialize package.json for Node.js project
+2. `npm install` - Install dependencies (React/Vue, webpack, etc.)
+3. Create `src/` directory structure for components and validators
 
-When suggesting code for this validator, ensure coverage of these key JSON:API v1.1 specification areas:
+**Build commands** (planned):
+- `npm run build` - Build production bundle (estimated: 30-60 seconds)
+- `npm run dev` - Start development server with hot reload
+- `npm run test` - Run test suite (Jest + testing library)
+- `npm run lint` - ESLint code quality checks
+- `npm run start` - Serve production build locally
 
-1. **Document Structure**
-   - Top-level members (data, errors, meta, links, included, jsonapi)
-   - Resource objects structure
-   - Relationship objects
-
-2. **Content Type Validation**
-   - `application/vnd.api+json` content type
-   - Media type parameters handling
-
-3. **Resource Object Validation**
-   - Required `type` and `id` fields (except for new resources)
-   - Attributes and relationships structure
-   - Links object validation
-
-4. **Error Object Validation**
-   - Error object structure and required fields
-   - HTTP status code alignment
-
-5. **Query Parameters**
-   - Sparse fieldsets (`fields[type]`)
-   - Inclusion of related resources (`include`)
-   - Sorting (`sort`)
-   - Pagination
-   - Filtering
-
-6. **HTTP Method Compliance**
-   - GET, POST, PATCH, DELETE method handling
-   - Proper status code responses
+**Runtime requirements** (expected):
+- Node.js 18+ for build tools
+- Modern browser (Chrome 90+, Firefox 88+, Safari 14+)
 
 ### Testing Strategy
+No tests exist yet. Expected test structure:
+- Unit tests for validation logic in `tests/unit/`
+- Integration tests for API client in `tests/integration/`  
+- E2E tests for SPA workflows in `tests/e2e/`
 
-- Write comprehensive unit tests for each validation rule
-- Include integration tests with real JSON:API examples
-- Test both valid and invalid JSON:API documents
-- Include edge cases and malformed data scenarios
-- Performance tests for large document validation
+### Environment Setup
+No special environment setup currently required. Standard web development environment expected.
 
-### Error Handling and Reporting
+## Project Layout and Architecture
 
-- Provide detailed, actionable error messages
-- Include JSON pointer references for precise error locations
-- Support multiple error reporting (don't stop at first error)
-- Include severity levels (error, warning, info)
+### Current Repository Structure
+```
+/
+├── .git/                    # Git repository data
+├── .github/                 # GitHub configuration
+│   └── copilot-instructions.md  # This file
+├── LICENSE                  # MIT license
+└── README.md               # Project documentation
+```
 
-### API Design Preferences
-
-- Design for both programmatic usage and CLI usage
-- Support streaming validation for large documents
-- Allow custom validation rule configuration
-- Provide clear validation result objects with structured feedback
-
-### Documentation Standards
-
-- Include JSDoc comments for all public APIs
-- Provide usage examples in README
-- Document all validation rules with spec references
-- Include migration guides for different JSON:API versions
-
-### Dependencies and Libraries
-
-- Prefer lightweight, well-maintained dependencies
-- Use JSON Schema where appropriate for validation
-- Consider performance implications of dependency choices
-- Keep dependencies up-to-date and secure
-
-### File Organization
-
+### Planned Architecture (from README)
 ```
 src/
-├── validators/          # Core validation logic
-├── rules/              # Individual validation rules
-├── parsers/            # JSON:API document parsing
-├── reporters/          # Error/result reporting
-├── cli/                # Command-line interface
-└── types/              # TypeScript type definitions
-
-tests/
-├── unit/               # Unit tests for individual components
-├── integration/        # Integration tests with real data
-└── fixtures/           # Test data and JSON:API examples
+├── components/             # React/Vue UI components
+│   ├── TestRunner.js       # Main test execution component
+│   ├── ConfigForm.js       # API endpoint configuration  
+│   ├── ResultsPanel.js     # Validation results display
+│   └── WorkflowSteps.js    # Multi-step test workflow UI
+├── validators/             # JSON:API validation logic
+│   ├── DocumentValidator.js # Document structure validation
+│   ├── ResourceValidator.js # Resource object validation
+│   ├── ErrorValidator.js   # Error response validation
+│   └── QueryValidator.js   # Query parameter validation
+├── client/                 # HTTP client for API requests
+│   ├── RequestGenerator.js # Generate JSON:API compliant requests
+│   ├── ResponseHandler.js  # Process API responses
+│   └── WorkflowEngine.js   # Multi-step test execution
+├── utils/                  # Shared utilities
+│   ├── JsonApiHelper.js    # JSON:API structure helpers
+│   └── ValidationReporter.js # Format validation results
+└── app.js                  # Main application entry point
 ```
 
-### Performance Considerations
+### Key Implementation Requirements
+- **Single-Page Application**: Web-based UI, not middleware or CLI tool
+- **Client-side testing**: Generate HTTP requests to test any JSON:API backend
+- **Multi-step workflows**: Chain CRUD operations for comprehensive validation
+- **JSON:API v1.1 compliance**: Full specification validation including document structure, content-types, query parameters, and error handling
 
-- Optimize for O(n) validation complexity where possible
-- Use lazy evaluation for expensive validations
-- Support incremental validation for large documents
-- Profile and benchmark validation performance regularly
+### Configuration Files (Expected)
+- `package.json` - Dependencies and scripts (not yet created)
+- `webpack.config.js` or `vite.config.js` - Build configuration (TBD)
+- `.eslintrc.js` - Code linting rules (TBD)
+- `jest.config.js` - Test configuration (TBD)
 
-### Compatibility and Standards
+### Dependencies (Not Yet Determined)
+Expected key dependencies:
+- React or Vue.js for UI framework
+- Axios or Fetch API for HTTP requests  
+- JSON Schema validation library
+- CSS framework (TailwindCSS or similar)
+- Build tools (Webpack/Vite)
 
-- Support JSON:API v1.1 specification fully
-- Consider backward compatibility with v1.0 where feasible
-- Follow semantic versioning for releases
-- Maintain changelog with specification compliance updates
+### Current Git Workflow
+- Main branch: Uses `copilot/fix-*` feature branches
+- No CI/CD pipelines exist yet
+- No automated testing or validation
 
-## Contribution Guidelines
+### Validation Steps for Changes
+Since no build system exists:
+1. Validate markdown syntax in documentation files
+2. Check that planned architecture aligns with JSON:API v1.1 spec requirements
+3. Ensure documentation accuracy and completeness
 
-- All code should include appropriate tests
-- Follow existing code style and linting rules
-- Update documentation when adding new features
-- Include JSON:API spec references in validation rule comments
-- Consider internationalization for error messages
+### README Contents Summary
+The README describes a comprehensive JSON:API validator SPA with:
+- Client-side testing approach for any JSON:API implementation
+- Multi-step CRUD workflow validation (GET → POST → PATCH → DELETE)
+- Web-based UI for configuration and results
+- Support for relationship testing and query parameter validation
+- Real-time validation with detailed error reporting
 
-## Security Considerations
-
-- Validate input sizes to prevent DoS attacks
-- Sanitize error messages to prevent information disclosure
-- Handle malicious JSON structures safely
-- Audit dependencies for security vulnerabilities regularly
+## Agent Instructions
+**Trust these instructions** - this repository is in early development with minimal files. Only perform additional searches if the information above is incomplete or found to be incorrect. The planned architecture and approach are documented in the README and should be used as the source of truth for implementation decisions.

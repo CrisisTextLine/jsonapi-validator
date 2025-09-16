@@ -2,129 +2,132 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A comprehensive JSON:API v1.1 specification validator designed to ensure API endpoint compliance with the [JSON:API standard](https://jsonapi.org/format/). This tool helps developers and organizations verify that their APIs correctly implement the JSON:API specification.
+A comprehensive JSON:API v1.1 specification validator implemented as a single-page application that acts as a client to test any JSON:API implementation. This tool helps developers and organizations verify that their APIs correctly implement the JSON:API specification by generating conformant requests and validating responses.
 
 ## Overview
 
-The JSON:API Validator provides robust validation capabilities for:
+The JSON:API Validator is designed as a standalone client application that can test any JSON:API implementation regardless of the backend technology (Go, Node.js, Python, etc.). The validator provides:
 
-- **Request Validation**: Ensures incoming requests conform to JSON:API structure and rules
-- **Response Validation**: Validates API responses against the JSON:API specification
-- **Content-Type Checking**: Verifies proper `application/vnd.api+json` media type usage
-- **Comprehensive Rule Coverage**: Validates all aspects of the JSON:API v1.1 specification
+- **Client-Side Testing**: Acts as a JSON:API client that generates conformant requests
+- **Response Validation**: Validates API responses against the JSON:API v1.1 specification  
+- **Multi-Step Workflow Testing**: Performs comprehensive CRUD operations to validate complete JSON:API behavior
+- **Cross-Platform Compatibility**: Works with any JSON:API implementation via HTTP requests
 
 ## Planned Features
 
-### Core Validation Capabilities
+### Client Application Capabilities
 
-- ✅ **Document Structure Validation**
-  - Top-level document members (`data`, `errors`, `meta`, `links`, `included`, `jsonapi`)
-  - Resource object validation with required `type` and `id` fields
-  - Relationship object structure and links validation
+- ✅ **Single-Page Application Interface**
+  - Web-based UI for configuring and running JSON:API tests
+  - Real-time validation results with detailed error reporting
+  - Support for multiple API endpoint configurations
+  - Export/import test configurations and results
+
+- ✅ **Multi-Step Workflow Testing**
+  - **GET Collection**: Retrieve a list of resources and validate structure
+  - **GET Individual**: Fetch individual resources from collection results
+  - **POST Create**: Copy existing resource data to create new entries
+  - **PATCH Update**: Modify created resources and validate update behavior
+  - **DELETE**: Remove test resources and validate proper cleanup
+  - **Relationship Testing**: Validate related resource inclusion and linking
+
+- ✅ **Request Generation & Validation**
+  - Generate JSON:API compliant requests for all HTTP methods
+  - Validate request structure before sending to target API
+  - Support for complex query parameters (include, fields, sort, pagination)
+  - Custom header management and content-type validation
+
+- ✅ **Response Analysis**
+  - Comprehensive JSON:API v1.1 specification compliance checking
+  - Document structure validation (data, errors, meta, links, included, jsonapi)
+  - Resource object validation with type/id requirements
   - Error object structure and HTTP status alignment
+  - Content-Type and media type parameter validation
 
-- ✅ **Content Type Compliance**
-  - `application/vnd.api+json` content type validation
-  - Media type parameters handling
-  - HTTP method compliance (GET, POST, PATCH, DELETE)
+### Usage Interface
 
-- ✅ **Query Parameter Validation**
-  - Sparse fieldsets (`fields[type]`) validation
-  - Inclusion parameters (`include`) with relationship path validation
-  - Sorting parameters (`sort`) with field validation
-  - Pagination parameter validation
-  - Custom filtering parameter support
+#### Single-Page Application (Planned)
 
-- ✅ **Advanced Validation Features**
-  - JSON Pointer-based error reporting for precise error locations
-  - Multiple error reporting (doesn't stop at first error)
-  - Severity levels (error, warning, info)
-  - Performance-optimized validation for large documents
-
-### Usage Interfaces
-
-#### Programmatic API (Planned)
+The validator will be implemented as a web-based single-page application:
 
 ```javascript
-import { validateJsonApi } from 'jsonapi-validator';
+// Configuration for testing a JSON:API endpoint
+const testConfig = {
+  baseUrl: 'https://api.example.com',
+  resourceType: 'posts',
+  authHeaders: {
+    'Authorization': 'Bearer your-token-here'
+  },
+  testScenarios: [
+    'list-resources',
+    'get-individual', 
+    'create-resource',
+    'update-resource',
+    'delete-resource',
+    'test-relationships'
+  ]
+};
 
-// Validate a JSON:API document
-const result = await validateJsonApi(document, options);
-
-if (result.isValid) {
-  console.log('Document is valid JSON:API!');
-} else {
-  console.error('Validation errors:', result.errors);
-}
+// Run comprehensive JSON:API validation
+const results = await runJsonApiTests(testConfig);
 ```
 
-#### Command Line Interface (Planned)
+#### Test Workflow Example
 
-```bash
-# Validate a JSON file
-jsonapi-validate document.json
+1. **List Resources** (`GET /posts`)
+   - Validate response structure and resource collection format
+   - Extract sample resource for further testing
 
-# Validate API endpoint
-jsonapi-validate --url https://api.example.com/posts
+2. **Get Individual Resource** (`GET /posts/123`)
+   - Validate individual resource object structure
+   - Test sparse fieldsets and include parameters
 
-# Output detailed report
-jsonapi-validate document.json --format detailed --output report.json
-```
+3. **Create Resource** (`POST /posts`)
+   - Copy existing resource data to create test payload
+   - Validate creation response and resource ID assignment
 
-#### HTTP Validation Middleware (Planned)
+4. **Update Resource** (`PATCH /posts/new-id`)
+   - Modify created resource attributes
+   - Validate update response and changed fields
 
-```javascript
-import { jsonApiMiddleware } from 'jsonapi-validator/middleware';
-
-// Express.js middleware
-app.use('/api', jsonApiMiddleware({
-  validateRequests: true,
-  validateResponses: true,
-  strictMode: false
-}));
-```
+5. **Delete Resource** (`DELETE /posts/new-id`)
+   - Clean up test data
+   - Validate proper deletion response
 
 ## Architecture Overview
 
-### Core Components
+### Single-Page Application Structure
 
 ```
 src/
-├── validators/          # Core validation engine
-│   ├── DocumentValidator.js     # Main document structure validation
-│   ├── ResourceValidator.js     # Resource object validation
-│   ├── ErrorValidator.js        # Error object validation
-│   └── QueryValidator.js        # Query parameter validation
-├── rules/              # Individual validation rules
-│   ├── ContentTypeRules.js      # Content-Type validation rules
-│   ├── StructureRules.js        # Document structure rules
-│   ├── RelationshipRules.js     # Relationship validation rules
-│   └── FieldRules.js           # Field-specific validation rules
-├── parsers/            # JSON:API document parsing
-│   ├── DocumentParser.js        # Main document parser
-│   └── QueryParser.js          # Query parameter parser
-├── reporters/          # Error and result reporting
-│   ├── ErrorReporter.js         # Structured error reporting
-│   └── ResultFormatter.js       # Result output formatting
-├── cli/                # Command-line interface
-│   └── cli.js                  # CLI implementation
-└── types/              # Type definitions
-    └── jsonapi.d.ts            # JSON:API TypeScript types
+├── components/         # React/Vue components for the UI
+│   ├── TestRunner.js          # Main test execution component
+│   ├── ConfigForm.js          # API endpoint configuration
+│   ├── ResultsPanel.js        # Validation results display
+│   └── WorkflowSteps.js       # Multi-step test workflow UI
+├── validators/         # Core JSON:API validation logic
+│   ├── DocumentValidator.js   # Document structure validation
+│   ├── ResourceValidator.js   # Resource object validation
+│   ├── ErrorValidator.js      # Error response validation
+│   └── QueryValidator.js      # Query parameter validation
+├── client/            # HTTP client for API requests
+│   ├── RequestGenerator.js    # Generate JSON:API compliant requests
+│   ├── ResponseHandler.js     # Process and validate API responses
+│   └── WorkflowEngine.js      # Multi-step test execution
+├── utils/             # Shared utilities
+│   ├── JsonApiHelper.js       # JSON:API structure helpers
+│   └── ValidationReporter.js  # Format validation results
+└── app.js             # Main application entry point
 ```
 
-### Validation Approach
+### Validation Workflow
 
-1. **Document Parsing**: Parse and normalize the JSON:API document structure
-2. **Rule Application**: Apply validation rules based on JSON:API v1.1 specification
-3. **Error Aggregation**: Collect and categorize validation errors with precise locations
-4. **Result Reporting**: Format results with actionable feedback and suggestions
-
-### Performance Considerations
-
-- **Streaming Validation**: Support for large document validation without loading entire document into memory
-- **Lazy Evaluation**: Expensive validations only run when necessary
-- **Caching**: Rule compilation and schema caching for repeated validations
-- **Benchmarking**: Regular performance testing to ensure O(n) complexity where possible
+1. **Configuration**: User specifies target JSON:API endpoint and authentication
+2. **Request Generation**: Create spec-compliant requests for each test scenario
+3. **API Communication**: Execute HTTP requests against target endpoint
+4. **Response Validation**: Validate each response against JSON:API v1.1 spec
+5. **Result Reporting**: Display detailed validation results with actionable feedback
+6. **Multi-Step Testing**: Chain operations (list → get → create → update → delete) for comprehensive testing
 
 ## JSON:API v1.1 Compliance
 
