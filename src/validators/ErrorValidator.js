@@ -715,8 +715,8 @@ function validateJsonPointer(pointer, context) {
   }
 
   // Validate escape sequences: ~0 (represents ~) and ~1 (represents /)
-  // Any ~ must be followed by 0 or 1
-  const invalidEscapes = pointer.match(/~[^01]/g)
+  // Any ~ must be followed by 0 or 1, and ~ at end of string is invalid
+  const invalidEscapes = pointer.match(/~[^01]|~$/g)
   if (invalidEscapes) {
     results.valid = false
     results.errors.push({
