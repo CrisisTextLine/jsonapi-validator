@@ -9,6 +9,7 @@ import { validateDocument } from '../validators/DocumentValidator.js'
 import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.js'
 import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
 import { validatePagination } from '../validators/PaginationValidator.js'
+import { createComprehensiveReport } from '../utils/ValidationReporter.js'
 
 /**
  * Runs comprehensive JSON:API validation on an endpoint
@@ -280,10 +281,13 @@ export async function runValidation(config) {
     const duration = Date.now() - startTime
     results.duration = `${duration}ms`
 
-    return results
+    // Create comprehensive report
+    const comprehensiveReport = createComprehensiveReport(results)
+
+    return comprehensiveReport
 
   } catch (error) {
-    return {
+    const errorResults = {
       timestamp: new Date().toISOString(),
       endpoint: config.apiUrl,
       method: config.httpMethod,
@@ -301,5 +305,8 @@ export async function runValidation(config) {
         message: error.message
       }]
     }
+
+    // Create comprehensive report for error case too
+    return createComprehensiveReport(errorResults)
   }
 }

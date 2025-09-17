@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import ConfigForm from './components/ConfigForm'
 import TestRunner from './components/TestRunner'
-import ResultsPanel from './components/ResultsPanel'
+import EnhancedResultsPanel from './components/EnhancedResultsPanel'
 import { runValidation } from './utils/ValidationService.js'
 
 function App() {
@@ -34,11 +34,11 @@ function App() {
     try {
       const results = await runValidation(testConfig)
       
-      if (results.status === 'error') {
+      if (results.metadata?.status === 'error' || results.error) {
         setValidationState({
           isRunning: false,
           results: null,
-          error: results.error
+          error: results.error || 'Validation failed'
         })
       } else {
         setValidationState({
@@ -97,7 +97,7 @@ function App() {
         
         <div className="card">
           <h2>Results</h2>
-          <ResultsPanel 
+          <EnhancedResultsPanel 
             validationState={validationState}
           />
         </div>
