@@ -90,8 +90,26 @@ export function validateDocument(response) {
     }
   }
 
-  // Step 5: Validate optional included array
-  if (Object.prototype.hasOwnProperty.call(response, 'included')) {
+  // Step 5: Validate optional included array and compound document rules
+  const hasIncluded = Object.prototype.hasOwnProperty.call(response, 'included')
+  
+  if (hasIncluded) {
+    // First validate that included is only present when data is present
+    if (!hasData) {
+      results.valid = false
+      results.errors.push({
+        test: 'Compound Document Structure',
+        message: 'Included member must not be present without data member'
+      })
+    } else {
+      results.details.push({
+        test: 'Compound Document Structure',
+        status: 'passed',
+        message: 'Included member is properly paired with data member'
+      })
+    }
+    
+    // Validate the included member structure
     const includedValidation = validateIncludedMember(response.included)
     results.details.push(...includedValidation.details)
     if (!includedValidation.valid) {
@@ -100,6 +118,19 @@ export function validateDocument(response) {
     }
     if (includedValidation.warnings) {
       results.warnings.push(...includedValidation.warnings)
+    }
+    
+    // Validate compound document if both data and included are present and valid
+    if (hasData && includedValidation.valid && results.valid) {
+      const compoundValidation = validateCompoundDocument(response.data, response.included)
+      results.details.push(...compoundValidation.details)
+      if (!compoundValidation.valid) {
+        results.valid = false
+        results.errors.push(...compoundValidation.errors)
+      }
+      if (compoundValidation.warnings) {
+        results.warnings.push(...compoundValidation.warnings)
+      }
     }
   }
 
@@ -251,6 +282,78 @@ function validateIncludedMember(included) {
   }
   if (collectionValidation.warnings) {
     results.warnings.push(...collectionValidation.warnings)
+  }
+
+  return results
+}
+
+/**
+ * Validates compound document rules - linkage, duplicates, and circular references
+ * @param {any} data - The primary data (resource object, array of resources, or null)
+ * @param {Array} included - The included resources array
+ * @returns {Object} Validation result
+ */
+function validateCompoundDocument(data, included) {
+  const results = {
+    valid: true,
+    errors: [],
+    warnings: [],
+    details: []
+  }
+
+  // Skip most validation if data is null, but check for orphaned included resources
+  if (data === null) {
+    if (included.length > 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Resource Linkage',
+        message: `All ${included.length} included resources are orphaned when data is null`
+      })
+    } else {
+      results.details.push({
+        test: 'Compound Document Validation',
+        status: 'passed',
+        message: 'No compound document validation needed (data is null and included is empty)'
+      })
+    }
+    return results
+  }
+
+  // Skip validation if included is empty
+  if (!Array.isArray(included) || included.length === 0) {
+    results.details.push({
+      test: 'Compound Document Validation',
+      status: 'passed',
+      message: 'No compound document validation needed (included is empty)'
+    })
+    return results
+  }
+
+  // Step 1: Check for duplicate resources in included array
+  const duplicateValidation = validateNoDuplicatesInIncluded(included)
+  results.details.push(...duplicateValidation.details)
+  if (!duplicateValidation.valid) {
+    results.valid = false
+    results.errors.push(...duplicateValidation.errors)
+  }
+
+  // Step 2: Validate that all included resources are referenced from primary data
+  const linkageValidation = validateResourceLinkage(data, included)
+  results.details.push(...linkageValidation.details)
+  if (!linkageValidation.valid) {
+    results.valid = false
+    results.errors.push(...linkageValidation.errors)
+  }
+  if (linkageValidation.warnings) {
+    results.warnings.push(...linkageValidation.warnings)
+  }
+
+  // Step 3: Check for circular references
+  const circularRefValidation = validateNoCircularReferences(data, included)
+  results.details.push(...circularRefValidation.details)
+  if (!circularRefValidation.valid) {
+    results.valid = false
+    results.errors.push(...circularRefValidation.errors)
   }
 
   return results
@@ -503,4 +606,251 @@ function validateJsonApiMember(jsonapi) {
   }
 
   return results
+}
+
+/**
+ * Validates that there are no duplicate resources in the included array
+ * @param {Array} included - The included resources array
+ * @returns {Object} Validation result
+ */
+function validateNoDuplicatesInIncluded(included) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  const seenResources = new Set()
+  const duplicates = []
+
+  for (let i = 0; i < included.length; i++) {
+    const resource = included[i]
+    if (resource && typeof resource === 'object' && resource.type && resource.id) {
+      const resourceKey = `${resource.type}:${resource.id}`
+      if (seenResources.has(resourceKey)) {
+        duplicates.push({ type: resource.type, id: resource.id, index: i })
+      } else {
+        seenResources.add(resourceKey)
+      }
+    }
+  }
+
+  if (duplicates.length > 0) {
+    results.valid = false
+    duplicates.forEach(dup => {
+      results.errors.push({
+        test: 'Included Resource Duplicates',
+        message: `Duplicate resource found in included array: ${dup.type}:${dup.id} at index ${dup.index}`
+      })
+    })
+  } else {
+    results.details.push({
+      test: 'Included Resource Duplicates',
+      status: 'passed',
+      message: `No duplicate resources found in included array (${included.length} unique resources)`
+    })
+  }
+
+  return results
+}
+
+/**
+ * Validates that all included resources are referenced from the primary data
+ * @param {any} data - The primary data (resource object, array, or null)
+ * @param {Array} included - The included resources array
+ * @returns {Object} Validation result
+ */
+function validateResourceLinkage(data, included) {
+  const results = {
+    valid: true,
+    errors: [],
+    warnings: [],
+    details: []
+  }
+
+  // Get all resource identifiers referenced from primary data
+  const referencedResources = extractReferencedResources(data)
+  
+  // Create set of included resource identifiers
+  const includedResources = new Set()
+  included.forEach(resource => {
+    if (resource && typeof resource === 'object' && resource.type && resource.id) {
+      includedResources.add(`${resource.type}:${resource.id}`)
+    }
+  })
+
+  // Find orphaned resources (included but not referenced)
+  const orphanedResources = []
+  includedResources.forEach(resourceKey => {
+    if (!referencedResources.has(resourceKey)) {
+      const [type, id] = resourceKey.split(':')
+      orphanedResources.push({ type, id })
+    }
+  })
+
+  // Find missing resources (referenced but not included)
+  const missingResources = []
+  referencedResources.forEach(resourceKey => {
+    if (!includedResources.has(resourceKey)) {
+      const [type, id] = resourceKey.split(':')
+      missingResources.push({ type, id })
+    }
+  })
+
+  // Report orphaned resources as errors
+  if (orphanedResources.length > 0) {
+    results.valid = false
+    orphanedResources.forEach(resource => {
+      results.errors.push({
+        test: 'Resource Linkage',
+        message: `Orphaned included resource: ${resource.type}:${resource.id} is not referenced from primary data`
+      })
+    })
+  }
+
+  // Report missing resources as warnings (they might be intentionally omitted)
+  if (missingResources.length > 0) {
+    missingResources.forEach(resource => {
+      results.warnings.push({
+        test: 'Resource Linkage',
+        message: `Referenced resource ${resource.type}:${resource.id} is not included in compound document`
+      })
+    })
+  }
+
+  if (orphanedResources.length === 0 && missingResources.length === 0) {
+    results.details.push({
+      test: 'Resource Linkage',
+      status: 'passed',
+      message: `Perfect linkage: all ${included.length} included resources are referenced from primary data`
+    })
+  } else if (orphanedResources.length === 0) {
+    results.details.push({
+      test: 'Resource Linkage',
+      status: 'passed',
+      message: `No orphaned resources found (${missingResources.length} referenced resources not included)`
+    })
+  }
+
+  return results
+}
+
+/**
+ * Extracts all resource identifiers referenced from relationships in primary data
+ * @param {any} data - The primary data (resource object, array, or null)
+ * @returns {Set} Set of resource identifiers in format "type:id"
+ */
+function extractReferencedResources(data) {
+  const references = new Set()
+
+  if (data === null) {
+    return references
+  }
+
+  const resources = Array.isArray(data) ? data : [data]
+  
+  resources.forEach(resource => {
+    if (resource && typeof resource === 'object' && resource.relationships) {
+      Object.values(resource.relationships).forEach(relationship => {
+        if (relationship && relationship.data) {
+          const relData = Array.isArray(relationship.data) ? relationship.data : [relationship.data]
+          relData.forEach(rel => {
+            if (rel && rel.type && rel.id) {
+              references.add(`${rel.type}:${rel.id}`)
+            }
+          })
+        }
+      })
+    }
+  })
+
+  return references
+}
+
+/**
+ * Validates that there are no circular references in compound documents
+ * Note: In JSON:API, bidirectional relationships are normal and allowed.
+ * This validation primarily serves as informational analysis rather than strict validation.
+ * @param {any} data - The primary data
+ * @param {Array} included - The included resources array
+ * @returns {Object} Validation result
+ */
+function validateNoCircularReferences(data, included) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  // Create a map of all resources (primary + included) for reference lookup
+  const allResources = new Map()
+  
+  // Add primary data resources
+  if (data !== null) {
+    const primaryResources = Array.isArray(data) ? data : [data]
+    primaryResources.forEach(resource => {
+      if (resource && typeof resource === 'object' && resource.type && resource.id) {
+        allResources.set(`${resource.type}:${resource.id}`, resource)
+      }
+    })
+  }
+  
+  // Add included resources
+  included.forEach(resource => {
+    if (resource && typeof resource === 'object' && resource.type && resource.id) {
+      allResources.set(`${resource.type}:${resource.id}`, resource)
+    }
+  })
+
+  // Analyze relationship structure for informational purposes
+  const relationshipCount = analyzeRelationshipStructure(allResources)
+  
+  results.details.push({
+    test: 'Circular References',
+    status: 'passed',
+    message: `Relationship structure analyzed: ${allResources.size} resources with ${relationshipCount.total} relationships (${relationshipCount.bidirectional} bidirectional). Bidirectional relationships are normal in JSON:API.`
+  })
+
+  return results
+}
+
+/**
+ * Analyzes relationship structure in compound documents for informational purposes
+ * @param {Map} allResources - Map of all resources (primary + included)
+ * @returns {Object} Analysis results with counts
+ */
+function analyzeRelationshipStructure(allResources) {
+  let totalRelationships = 0
+  let bidirectionalCount = 0
+  const relationships = new Set()
+  
+  for (const [resourceKey, resource] of allResources) {
+    if (resource.relationships) {
+      Object.values(resource.relationships).forEach(relationship => {
+        if (relationship && relationship.data) {
+          const relData = Array.isArray(relationship.data) ? relationship.data : [relationship.data]
+          relData.forEach(rel => {
+            if (rel && rel.type && rel.id) {
+              const relKey = `${rel.type}:${rel.id}`
+              const relationshipPair = `${resourceKey}->${relKey}`
+              const reverseRelationshipPair = `${relKey}->${resourceKey}`
+              
+              relationships.add(relationshipPair)
+              totalRelationships++
+              
+              // Check if reverse relationship exists
+              if (relationships.has(reverseRelationshipPair)) {
+                bidirectionalCount++
+              }
+            }
+          })
+        }
+      })
+    }
+  }
+  
+  return {
+    total: totalRelationships,
+    bidirectional: Math.floor(bidirectionalCount / 2) // Each bidirectional pair is counted twice
+  }
 }
