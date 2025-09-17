@@ -10,6 +10,10 @@ import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/Q
 import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
 import { validatePagination } from '../validators/PaginationValidator.js'
 import { validateHttpStatus } from '../validators/HttpStatusValidator.js'
+import { validateRequestDocument } from '../validators/RequestValidator.js'
+import { validateJsonApiObjectExtended } from '../validators/JsonApiObjectValidator.js'
+import { validateContentNegotiation } from '../validators/ContentNegotiationValidator.js'
+import { validateUrlStructure } from '../validators/UrlStructureValidator.js'
 import { createComprehensiveReport } from '../utils/ValidationReporter.js'
 
 /**
@@ -33,7 +37,37 @@ export async function runValidation(config) {
     // Step 1: Validate query parameter syntax (before making request)
     const queryValidation = validateFieldsetSyntax(queryParams)
     
-    // Step 2: Make the API request
+    // Step 3: Validate URL structure
+    const urlValidation = validateUrlStructure(config.apiUrl)
+    
+    // Add URL structure validation results
+    results.details.push(...urlValidation.details)
+    urlValidation.errors.forEach(error => {
+      results.details.push({
+        test: error.test,
+        status: 'failed',
+        message: error.message
+      })
+      results.summary.failed++
+    })
+    urlValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+    urlValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
+    
+    // Step 4: Validate request body if present (temporarily commented out for debugging)
+    // if (['POST', 'PUT', 'PATCH'].includes(config.httpMethod) && config.requestBody) {
+
+    // Step 5: Make the API request
     const response = await makeRequest(config)
     
     if (!response.success) {
@@ -98,7 +132,10 @@ export async function runValidation(config) {
       }
     })
 
-    // Step 4: Check JSON parsing
+    // Step 6: Validate content negotiation (temporarily commented out for debugging)
+    // const contentNegotiationValidation = validateContentNegotiation(response.headers, {
+
+    // Step 7: Check JSON parsing
     if (response.parseError) {
       results.details.push({
         test: 'JSON Parsing',
@@ -115,25 +152,7 @@ export async function runValidation(config) {
       results.summary.passed++
     }
 
-    // Step 5: Check Content-Type header
-    const contentType = response.headers['content-type'] || ''
-    if (contentType.includes('application/vnd.api+json')) {
-      results.details.push({
-        test: 'Content-Type Header',
-        status: 'passed',
-        message: 'Content-Type is application/vnd.api+json'
-      })
-      results.summary.passed++
-    } else {
-      results.details.push({
-        test: 'Content-Type Header',
-        status: 'failed', 
-        message: `Expected "application/vnd.api+json" but got "${contentType}"`
-      })
-      results.summary.failed++
-    }
-
-    // Step 5b: Validate HTTP status code
+    // Step 8: Validate HTTP status code
     const statusValidation = validateHttpStatus(response.status, config.httpMethod, response.data)
     
     // Add HTTP status validation results
@@ -166,7 +185,7 @@ export async function runValidation(config) {
       }
     })
 
-    // Step 6: Validate query parameters
+    // Step 9: Validate query parameters
     const queryParamValidation = validateQueryParameters(config.apiUrl, response.data)
     
     // Add query parameter validation results  
@@ -199,7 +218,7 @@ export async function runValidation(config) {
       }
     })
 
-    // Step 7: Validate document structure (if JSON parsed successfully)
+    // Step 10: Validate document structure (if JSON parsed successfully)
     if (!response.parseError && response.data !== null) {
       const documentValidation = validateDocument(response.data)
       
@@ -233,7 +252,10 @@ export async function runValidation(config) {
         }
       })
 
-      // Step 8: Validate sparse fieldsets (if response has data and query parameters exist)
+      // Step 10b: Enhanced JSON:API object validation (temporarily commented out for debugging)
+      // if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'jsonapi')) {
+
+      // Step 11: Validate sparse fieldsets (if response has data and query parameters exist)
       if (response.data && Object.keys(queryParams).length > 0) {
         const fieldsetValidation = validateSparseFieldsets(response.data, queryParams)
         
@@ -270,7 +292,7 @@ export async function runValidation(config) {
         })
       }
 
-      // Step 9: Validate pagination (if response has data array)  
+      // Step 12: Validate pagination (if response has data array)  
       if (response.data && Array.isArray(response.data)) {
         const paginationValidation = validatePagination(response.data, config.apiUrl, queryParams)
         
