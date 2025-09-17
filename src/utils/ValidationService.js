@@ -6,6 +6,7 @@
 
 import { makeRequest } from '../utils/ApiClient.js'
 import { validateDocument } from '../validators/DocumentValidator.js'
+import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
 
 /**
  * Runs comprehensive JSON:API validation on an endpoint
@@ -92,7 +93,40 @@ export async function runValidation(config) {
       results.summary.failed++
     }
 
-    // Step 5: Validate document structure (if JSON parsed successfully)
+    // Step 5: Validate query parameters
+    const queryParamValidation = validateQueryParameters(config.apiUrl, response.data)
+    
+    // Add query parameter validation results  
+    results.details.push(...queryParamValidation.details)
+    
+    // Add any errors
+    queryParamValidation.errors.forEach(error => {
+      results.details.push({
+        test: error.test,
+        status: 'failed',
+        message: error.message
+      })
+      results.summary.failed++
+    })
+
+    // Add any warnings
+    queryParamValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+
+    // Count passed tests from query parameter validation
+    queryParamValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
+
+    // Step 6: Validate document structure (if JSON parsed successfully)
     if (!response.parseError && response.data !== null) {
       const documentValidation = validateDocument(response.data)
       
