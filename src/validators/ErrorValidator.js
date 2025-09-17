@@ -6,6 +6,7 @@
  */
 
 import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
+import { validateMemberName } from './ResourceValidator.js'
 
 /**
  * Validates the errors member structure
@@ -398,6 +399,17 @@ function validateErrorLinkValue(link, context) {
           message: 'Error link object "meta" must be an object'
         })
       } else {
+        // Validate meta member names follow JSON:API naming conventions
+        const metaKeys = Object.keys(link.meta)
+        for (const metaName of metaKeys) {
+          const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
+          results.details.push(...nameValidation.details)
+          if (!nameValidation.valid) {
+            results.valid = false
+            results.errors.push(...nameValidation.errors)
+          }
+        }
+        
         results.details.push({
           test: 'Error Link Object Meta',
           status: 'passed',
@@ -798,6 +810,17 @@ function validateErrorMetaMember(meta, context) {
     })
   } else {
     const metaKeys = Object.keys(meta)
+    
+    // Validate each meta member name follows JSON:API naming conventions
+    for (const metaName of metaKeys) {
+      const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
+      results.details.push(...nameValidation.details)
+      if (!nameValidation.valid) {
+        results.valid = false
+        results.errors.push(...nameValidation.errors)
+      }
+    }
+    
     results.details.push({
       test: 'Error Meta Member',
       status: 'passed',

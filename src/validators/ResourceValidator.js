@@ -166,14 +166,11 @@ function validateTypeMember(type, context) {
 
   // Validate type naming conventions (should follow recommended patterns)
   // JSON:API recommends using plural, kebab-case names
-  const typePattern = /^[a-z][a-z0-9-]*[a-z0-9]$|^[a-z]$/
-  if (!typePattern.test(type)) {
+  const typeValidation = validateMemberName(type, `${context}.type`)
+  results.details.push(...typeValidation.details)
+  if (!typeValidation.valid) {
     results.valid = false
-    results.errors.push({
-      test: 'Resource Type Naming Convention',
-      context,
-      message: `Resource "type" "${type}" should follow naming conventions (lowercase, kebab-case, typically plural)`
-    })
+    results.errors.push(...typeValidation.errors)
   } else {
     results.details.push({
       test: 'Resource Type Member',
@@ -281,6 +278,16 @@ function validateAttributesMember(attributes, context) {
       context,
       message: 'Resource "attributes" object is empty - consider omitting if no attributes'
     })
+  }
+
+  // Validate each attribute name follows JSON:API naming conventions
+  for (const attributeName of attributeKeys) {
+    const nameValidation = validateMemberName(attributeName, `${context}.attributes.${attributeName}`)
+    results.details.push(...nameValidation.details)
+    if (!nameValidation.valid) {
+      results.valid = false
+      results.errors.push(...nameValidation.errors)
+    }
   }
 
   // Check for forbidden members (type, id) in attributes
@@ -829,7 +836,7 @@ function validateLinkValue(link, context) {
  * @param {string} context - Context for error messages
  * @returns {Object} Validation result
  */
-function validateMemberName(memberName, context) {
+export function validateMemberName(memberName, context) {
   const results = {
     valid: true,
     errors: [],
@@ -856,17 +863,28 @@ function validateMemberName(memberName, context) {
     return results
   }
 
-  // JSON:API spec: Member names MUST contain at least one character.
-  // Member names MUST contain only the allowed characters a-z, A-Z, 0-9, hyphen, and underscore.
-  // Member names MUST start and end with a "globally allowed character" (a-z, A-Z, 0-9).
-  const memberNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/
+  // JSON:API v1.1 spec: Member names MUST contain only lowercase letters (a-z), 
+  // digits (0-9), hyphen (-), and underscore (_) characters.
+  // Member names MUST start and end with a "globally allowed character" (a-z, 0-9).
+  const memberNamePattern = /^[a-z0-9][a-z0-9_-]*[a-z0-9]$|^[a-z0-9]$/
   
   if (!memberNamePattern.test(memberName)) {
     results.valid = false
     results.errors.push({
       test: 'Member Name Format',
       context,
-      message: `Member name "${memberName}" must start and end with alphanumeric characters and contain only letters, numbers, hyphens, and underscores`
+      message: `Member name "${memberName}" must start and end with lowercase letters or digits and contain only lowercase letters, digits, hyphens, and underscores`
+    })
+    return results
+  }
+
+  // Check for consecutive dashes or underscores (not allowed by JSON:API spec)
+  if (/--/.test(memberName) || /__/.test(memberName) || /-_/.test(memberName) || /_-/.test(memberName)) {
+    results.valid = false
+    results.errors.push({
+      test: 'Member Name Format',
+      context,
+      message: `Member name "${memberName}" cannot contain consecutive dashes, underscores, or mixed consecutive separators`
     })
     return results
   }
@@ -986,6 +1004,17 @@ function validateMetaMember(meta, context) {
   }
 
   const metaKeys = Object.keys(meta)
+  
+  // Validate each meta member name follows JSON:API naming conventions
+  for (const metaName of metaKeys) {
+    const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
+    results.details.push(...nameValidation.details)
+    if (!nameValidation.valid) {
+      results.valid = false
+      results.errors.push(...nameValidation.errors)
+    }
+  }
+
   results.details.push({
     test: 'Resource Meta Member',
     status: 'passed',
