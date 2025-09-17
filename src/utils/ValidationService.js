@@ -9,6 +9,11 @@ import { validateDocument } from '../validators/DocumentValidator.js'
 import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.js'
 import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
 import { validatePagination } from '../validators/PaginationValidator.js'
+import { validateHttpStatus } from '../validators/HttpStatusValidator.js'
+import { validateRequestDocument } from '../validators/RequestValidator.js'
+import { validateJsonApiObjectExtended } from '../validators/JsonApiObjectValidator.js'
+import { validateContentNegotiation } from '../validators/ContentNegotiationValidator.js'
+import { validateUrlStructure } from '../validators/UrlStructureValidator.js'
 import { createComprehensiveReport } from '../utils/ValidationReporter.js'
 
 /**
@@ -32,7 +37,82 @@ export async function runValidation(config) {
     // Step 1: Validate query parameter syntax (before making request)
     const queryValidation = validateFieldsetSyntax(queryParams)
     
-    // Step 2: Make the API request
+    // Step 3: Validate URL structure
+    const urlValidation = validateUrlStructure(config.apiUrl)
+    
+    // Add URL structure validation results
+    results.details.push(...urlValidation.details)
+    urlValidation.errors.forEach(error => {
+      results.details.push({
+        test: error.test,
+        status: 'failed',
+        message: error.message
+      })
+      results.summary.failed++
+    })
+    urlValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+    urlValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
+    
+    // Step 4: Validate request body if present
+    // Note: Currently only validates for POST/PATCH with request body
+    // GET requests don't have request bodies to validate
+    if (['POST', 'PUT', 'PATCH'].includes(config.httpMethod) && config.requestBody) {
+      try {
+        const requestBody = typeof config.requestBody === 'string' 
+          ? JSON.parse(config.requestBody) 
+          : config.requestBody
+        
+        const requestValidation = validateRequestDocument(requestBody, config.httpMethod, {
+          readOnlyFields: config.readOnlyFields || []
+        })
+        
+        // Add request validation results
+        results.details.push(...requestValidation.details)
+        requestValidation.errors.forEach(error => {
+          results.details.push({
+            test: error.test,
+            status: 'failed',
+            message: error.message,
+            context: error.context
+          })
+          results.summary.failed++
+        })
+        requestValidation.warnings.forEach(warning => {
+          results.details.push({
+            test: warning.test,
+            status: 'warning',
+            message: warning.message,
+            context: warning.context
+          })
+          results.summary.warnings++
+        })
+        requestValidation.details.forEach(detail => {
+          if (detail.status === 'passed') {
+            results.summary.passed++
+          }
+        })
+      } catch (error) {
+        results.details.push({
+          test: 'Request Body Parsing',
+          status: 'failed',
+          message: `Failed to parse request body as JSON: ${error.message}`
+        })
+        results.summary.failed++
+      }
+    }
+
+    // Step 5: Make the API request
     const response = await makeRequest(config)
     
     if (!response.success) {
@@ -97,7 +177,37 @@ export async function runValidation(config) {
       }
     })
 
-    // Step 4: Check JSON parsing
+    // Step 6: Validate content negotiation
+    const contentNegotiationValidation = validateContentNegotiation(response.headers, {
+      validateContentType: true,
+      validateAccept: false // We validate the response Content-Type, not request Accept
+    })
+    
+    // Add content negotiation validation results
+    results.details.push(...contentNegotiationValidation.details)
+    contentNegotiationValidation.errors.forEach(error => {
+      results.details.push({
+        test: error.test,
+        status: 'failed',
+        message: error.message
+      })
+      results.summary.failed++
+    })
+    contentNegotiationValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+    contentNegotiationValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
+
+    // Step 7: Check JSON parsing
     if (response.parseError) {
       results.details.push({
         test: 'JSON Parsing',
@@ -114,25 +224,40 @@ export async function runValidation(config) {
       results.summary.passed++
     }
 
-    // Step 5: Check Content-Type header
-    const contentType = response.headers['content-type'] || ''
-    if (contentType.includes('application/vnd.api+json')) {
+    // Step 8: Validate HTTP status code
+    const statusValidation = validateHttpStatus(response.status, config.httpMethod, response.data)
+    
+    // Add HTTP status validation results
+    results.details.push(...statusValidation.details)
+    
+    // Add any errors
+    statusValidation.errors.forEach(error => {
       results.details.push({
-        test: 'Content-Type Header',
-        status: 'passed',
-        message: 'Content-Type is application/vnd.api+json'
-      })
-      results.summary.passed++
-    } else {
-      results.details.push({
-        test: 'Content-Type Header',
-        status: 'failed', 
-        message: `Expected "application/vnd.api+json" but got "${contentType}"`
+        test: error.test,
+        status: 'failed',
+        message: error.message
       })
       results.summary.failed++
-    }
+    })
 
-    // Step 6: Validate query parameters
+    // Add any warnings
+    statusValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+
+    // Count passed tests from status validation
+    statusValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
+
+    // Step 9: Validate query parameters
     const queryParamValidation = validateQueryParameters(config.apiUrl, response.data)
     
     // Add query parameter validation results  
@@ -165,7 +290,7 @@ export async function runValidation(config) {
       }
     })
 
-    // Step 7: Validate document structure (if JSON parsed successfully)
+    // Step 10: Validate document structure (if JSON parsed successfully)
     if (!response.parseError && response.data !== null) {
       const documentValidation = validateDocument(response.data)
       
@@ -199,7 +324,36 @@ export async function runValidation(config) {
         }
       })
 
-      // Step 8: Validate sparse fieldsets (if response has data and query parameters exist)
+      // Step 10b: Enhanced JSON:API object validation
+      if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'jsonapi')) {
+        const jsonApiObjectValidation = validateJsonApiObjectExtended(response.data.jsonapi)
+        
+        // Add JSON:API object validation results
+        results.details.push(...jsonApiObjectValidation.details)
+        jsonApiObjectValidation.errors.forEach(error => {
+          results.details.push({
+            test: error.test,
+            status: 'failed',
+            message: error.message
+          })
+          results.summary.failed++
+        })
+        jsonApiObjectValidation.warnings.forEach(warning => {
+          results.details.push({
+            test: warning.test,
+            status: 'warning',
+            message: warning.message
+          })
+          results.summary.warnings++
+        })
+        jsonApiObjectValidation.details.forEach(detail => {
+          if (detail.status === 'passed') {
+            results.summary.passed++
+          }
+        })
+      }
+
+      // Step 11: Validate sparse fieldsets (if response has data and query parameters exist)
       if (response.data && Object.keys(queryParams).length > 0) {
         const fieldsetValidation = validateSparseFieldsets(response.data, queryParams)
         
@@ -236,7 +390,7 @@ export async function runValidation(config) {
         })
       }
 
-      // Step 9: Validate pagination (if response has data array)  
+      // Step 12: Validate pagination (if response has data array)  
       if (response.data && Array.isArray(response.data)) {
         const paginationValidation = validatePagination(response.data, config.apiUrl, queryParams)
         
