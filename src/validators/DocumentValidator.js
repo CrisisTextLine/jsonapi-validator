@@ -5,7 +5,7 @@
  * Based on specification: https://jsonapi.org/format/1.1/
  */
 
-import { validateResourceObject, validateResourceCollection } from './ResourceValidator.js'
+import { validateResourceObject, validateResourceCollection, validateMemberName } from './ResourceValidator.js'
 import { validateErrorsMember } from './ErrorValidator.js'
 import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
 
@@ -168,6 +168,16 @@ export function validateDocument(response) {
     if (!jsonApiValidation.valid) {
       results.valid = false
       results.errors.push(...jsonApiValidation.errors)
+    }
+  }
+
+  // Step 7b: Validate optional top-level meta object
+  if (Object.prototype.hasOwnProperty.call(response, 'meta')) {
+    const metaValidation = validateTopLevelMetaMember(response.meta)
+    results.details.push(...metaValidation.details)
+    if (!metaValidation.valid) {
+      results.valid = false
+      results.errors.push(...metaValidation.errors)
     }
   }
 
@@ -537,6 +547,17 @@ function validateDocumentLinkValue(link, context, linkName) {
           message: 'Document link object "meta" must be an object'
         })
       } else {
+        // Validate meta member names follow JSON:API naming conventions
+        const metaKeys = Object.keys(link.meta)
+        for (const metaName of metaKeys) {
+          const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
+          results.details.push(...nameValidation.details)
+          if (!nameValidation.valid) {
+            results.valid = false
+            results.errors.push(...nameValidation.errors)
+          }
+        }
+        
         results.details.push({
           test: 'Document Link Object Meta',
           status: 'passed',
@@ -621,6 +642,48 @@ function validateJsonApiMember(jsonapi) {
       message: 'JSON:API object present (version not specified)'
     })
   }
+
+  return results
+}
+
+/**
+ * Validates the top-level meta member
+ * @param {any} meta - The meta value to validate
+ * @returns {Object} Validation result
+ */
+function validateTopLevelMetaMember(meta) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) {
+    results.valid = false
+    results.errors.push({
+      test: 'Top-Level Meta Member',
+      message: 'Top-level "meta" must be an object'
+    })
+    return results
+  }
+
+  const metaKeys = Object.keys(meta)
+  
+  // Validate each meta member name follows JSON:API naming conventions
+  for (const metaName of metaKeys) {
+    const nameValidation = validateMemberName(metaName, `meta.${metaName}`)
+    results.details.push(...nameValidation.details)
+    if (!nameValidation.valid) {
+      results.valid = false
+      results.errors.push(...nameValidation.errors)
+    }
+  }
+
+  results.details.push({
+    test: 'Top-Level Meta Member',
+    status: 'passed',
+    message: `Top-level meta object contains ${metaKeys.length} metadata field(s)`
+  })
 
   return results
 }
