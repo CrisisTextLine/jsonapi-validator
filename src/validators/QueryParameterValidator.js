@@ -238,7 +238,7 @@ function validateFieldsParameter(params, response) {  // eslint-disable-line no-
  * @param {Object} response - API response (optional) 
  * @returns {Object} Validation result
  */
-function validateSortParameter(params, response) {  // eslint-disable-line no-unused-vars
+function validateSortParameter(params, response) {
   const results = {
     valid: true,
     errors: [],
@@ -269,7 +269,7 @@ function validateSortParameter(params, response) {  // eslint-disable-line no-un
     })
   }
 
-  // Validate each sort field
+  // Validate each sort field format
   sortFields.forEach((field, index) => {
     if (field === '') return
 
@@ -294,7 +294,14 @@ function validateSortParameter(params, response) {  // eslint-disable-line no-un
     }
   })
 
-  if (results.valid) {
+  // If response is provided, validate response order and field existence
+  if (response && response.data && Array.isArray(response.data)) {
+    const responseValidation = validateSortResponse(sortFields, response.data, params)
+    mergeValidationResults(results, responseValidation)
+  }
+
+  // Report format validation results
+  if (results.valid && results.errors.length === 0) {
     const ascendingFields = sortFields.filter(field => !field.startsWith('-'))
     const descendingFields = sortFields.filter(field => field.startsWith('-'))
     
@@ -465,6 +472,299 @@ function validateFilterParameter(params, response) {  // eslint-disable-line no-
       status: 'passed',
       message: `Found ${filterParams.length} filter parameter(s)`
     })
+  }
+
+  return results
+}
+
+/**
+ * Validates that the response order matches the requested sort fields
+ * @param {Array} sortFields - Array of sort fields (including '-' prefix for descending)
+ * @param {Array} resources - Array of resources from the response
+ * @param {Object} params - All query parameters (to check for pagination)
+ * @returns {Object} Validation result
+ */
+function validateSortResponse(sortFields, resources, params = {}) {
+  const results = {
+    valid: true,
+    errors: [],
+    warnings: [],
+    details: []
+  }
+
+  if (!sortFields.length || !resources.length) {
+    return results
+  }
+
+  // Check if sort fields exist in resources
+  const fieldExistenceResults = validateSortFieldsExist(sortFields, resources)
+  mergeValidationResults(results, fieldExistenceResults)
+
+  // If resources have 1 or fewer items, sorting is automatically correct
+  if (resources.length <= 1) {
+    results.details.push({
+      test: 'Sort Response Order',
+      status: 'passed',
+      message: `Response has ${resources.length} resource(s), sort order is trivially correct`
+    })
+    return results
+  }
+
+  // Validate actual sort order in response
+  const orderValidationResults = validateResponseOrder(sortFields, resources)
+  mergeValidationResults(results, orderValidationResults)
+
+  // Check for pagination consistency concerns
+  const paginationResults = validateSortPaginationConsistency(sortFields, params)
+  mergeValidationResults(results, paginationResults)
+
+  return results
+}
+
+/**
+ * Validates that sort fields actually exist in the response resources
+ * @param {Array} sortFields - Array of sort fields (including '-' prefix for descending)
+ * @param {Array} resources - Array of resources from the response
+ * @returns {Object} Validation result
+ */
+function validateSortFieldsExist(sortFields, resources) {
+  const results = {
+    valid: true,
+    errors: [],
+    warnings: [],
+    details: []
+  }
+
+  if (!resources.length) return results
+
+  // Use first resource as representative sample to check field existence
+  const sampleResource = resources[0]
+  const missingFields = []
+  const existingFields = []
+
+  sortFields.forEach(field => {
+    const isDescending = field.startsWith('-')
+    const fieldName = isDescending ? field.substring(1) : field
+    
+    // Check if field exists in attributes or at root level
+    let fieldExists = false
+    
+    if (sampleResource.attributes && hasNestedProperty(sampleResource.attributes, fieldName)) {
+      fieldExists = true
+    } else if (hasNestedProperty(sampleResource, fieldName)) {
+      fieldExists = true
+    }
+
+    if (fieldExists) {
+      existingFields.push(fieldName)
+    } else {
+      missingFields.push(fieldName)
+    }
+  })
+
+  if (missingFields.length > 0) {
+    results.warnings.push({
+      test: 'Sort Field Existence',
+      message: `Sort field(s) not found in response resources: ${missingFields.join(', ')}. This may indicate the API doesn't support sorting by these fields.`
+    })
+  }
+
+  if (existingFields.length > 0) {
+    results.details.push({
+      test: 'Sort Field Existence',
+      status: 'passed',
+      message: `Sort field(s) found in response resources: ${existingFields.join(', ')}`
+    })
+  }
+
+  return results
+}
+
+/**
+ * Validates that the response resources are actually ordered according to sort fields
+ * @param {Array} sortFields - Array of sort fields (including '-' prefix for descending)
+ * @param {Array} resources - Array of resources from the response
+ * @returns {Object} Validation result
+ */
+function validateResponseOrder(sortFields, resources) {
+  const results = {
+    valid: true,
+    errors: [],
+    warnings: [],
+    details: []
+  }
+
+  // Check ordering for each consecutive pair of resources
+  for (let i = 0; i < resources.length - 1; i++) {
+    const currentResource = resources[i]
+    const nextResource = resources[i + 1]
+
+    const comparison = compareResourcesBySortFields(currentResource, nextResource, sortFields)
+    
+    // If comparison > 0, it means current > next, which violates sort order
+    if (comparison > 0) {
+      results.valid = false
+      results.errors.push({
+        test: 'Sort Response Order',
+        message: `Resources at positions ${i + 1} and ${i + 2} are not correctly ordered according to sort criteria: ${sortFields.join(', ')}`
+      })
+    }
+  }
+
+  if (results.valid) {
+    results.details.push({
+      test: 'Sort Response Order',
+      status: 'passed',
+      message: `Response resources are correctly ordered according to sort criteria: ${sortFields.join(', ')}`
+    })
+  }
+
+  return results
+}
+
+/**
+ * Compares two resources according to sort fields
+ * @param {Object} a - First resource
+ * @param {Object} b - Second resource  
+ * @param {Array} sortFields - Array of sort fields (including '-' prefix for descending)
+ * @returns {number} -1 if a < b, 0 if a === b, 1 if a > b
+ */
+function compareResourcesBySortFields(a, b, sortFields) {
+  for (const field of sortFields) {
+    const isDescending = field.startsWith('-')
+    const fieldName = isDescending ? field.substring(1) : field
+    
+    const aVal = getResourceFieldValue(a, fieldName)
+    const bVal = getResourceFieldValue(b, fieldName)
+    
+    // Handle null/undefined values
+    if (aVal === null || aVal === undefined) {
+      if (bVal === null || bVal === undefined) continue
+      return isDescending ? 1 : -1
+    }
+    if (bVal === null || bVal === undefined) {
+      return isDescending ? -1 : 1
+    }
+
+    // Compare values
+    if (aVal < bVal) return isDescending ? 1 : -1
+    if (aVal > bVal) return isDescending ? -1 : 1
+    // If equal, continue to next sort field
+  }
+  return 0
+}
+
+/**
+ * Gets the value of a field from a resource, checking both attributes and root level
+ * @param {Object} resource - The resource object
+ * @param {string} fieldName - The field name (may include dots for nested access)
+ * @returns {*} The field value or null if not found
+ */
+function getResourceFieldValue(resource, fieldName) {
+  // First check in attributes
+  if (resource.attributes) {
+    const attrValue = getNestedProperty(resource.attributes, fieldName)
+    if (attrValue !== null) return attrValue
+  }
+  
+  // Then check at root level
+  return getNestedProperty(resource, fieldName)
+}
+
+/**
+ * Gets a nested property from an object using dot notation
+ * @param {Object} obj - The object to search
+ * @param {string} path - The property path (e.g., 'a.b.c')
+ * @returns {*} The property value or null if not found
+ */
+function getNestedProperty(obj, path) {
+  if (!obj || typeof obj !== 'object') return null
+  
+  const keys = path.split('.')
+  let current = obj
+  
+  for (const key of keys) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return null
+    }
+    current = current[key]
+  }
+  
+  return current === undefined ? null : current
+}
+
+/**
+ * Checks if a nested property exists in an object using dot notation
+ * @param {Object} obj - The object to search
+ * @param {string} path - The property path (e.g., 'a.b.c')  
+ * @returns {boolean} True if the property exists
+ */
+function hasNestedProperty(obj, path) {
+  if (!obj || typeof obj !== 'object') return false
+  
+  const keys = path.split('.')
+  let current = obj
+  
+  for (const key of keys) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return false
+    }
+    if (!(key in current)) {
+      return false
+    }
+    current = current[key]
+  }
+  
+  return true
+}
+
+/**
+ * Validates pagination consistency with sorting
+ * @param {Array} sortFields - Array of sort fields (including '-' prefix for descending)  
+ * @param {Object} params - All query parameters
+ * @returns {Object} Validation result
+ */
+function validateSortPaginationConsistency(sortFields, params) {
+  const results = {
+    valid: true,
+    errors: [],
+    warnings: [],
+    details: []
+  }
+
+  // Check if pagination parameters are present
+  const pageParams = Object.keys(params).filter(key => key.startsWith('page[') && key.endsWith(']'))
+  
+  if (pageParams.length === 0) {
+    results.details.push({
+      test: 'Sort Pagination Consistency',
+      status: 'passed', 
+      message: 'No pagination parameters detected - sort consistency across pages not applicable'
+    })
+    return results
+  }
+
+  // If both sorting and pagination are used, provide guidance
+  if (sortFields.length > 0 && pageParams.length > 0) {
+    results.details.push({
+      test: 'Sort Pagination Consistency',
+      status: 'passed',
+      message: `Sorting with pagination detected. Ensure sort order is consistent across all pages. Sort fields: ${sortFields.join(', ')}, Page params: ${pageParams.join(', ')}`
+    })
+
+    // Check for potential stability issues
+    const hasPotentiallyUnstableSort = sortFields.some(field => {
+      const fieldName = field.startsWith('-') ? field.substring(1) : field
+      // Common fields that might not provide stable sort order
+      return ['title', 'name', 'status'].includes(fieldName)
+    })
+
+    if (hasPotentiallyUnstableSort && !sortFields.includes('id') && !sortFields.includes('-id')) {
+      results.warnings.push({
+        test: 'Sort Pagination Consistency',
+        message: 'Sorting by fields that may have duplicate values without including "id" as a tiebreaker may result in inconsistent ordering across pages. Consider adding "id" as a secondary sort field.'
+      })
+    }
   }
 
   return results
