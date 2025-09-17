@@ -13,121 +13,126 @@ The JSON:API Validator is designed as a standalone client application that can t
 - **Multi-Step Workflow Testing**: Performs comprehensive CRUD operations to validate complete JSON:API behavior
 - **Cross-Platform Compatibility**: Works with any JSON:API implementation via HTTP requests
 
-## Planned Features
+## Features
 
-### Client Application Capabilities
+The JSON:API Validator is a fully functional React-based single-page application that provides comprehensive JSON:API v1.1 specification validation.
 
-- ✅ **Single-Page Application Interface**
+### Core Capabilities
+
+- **Single-Page Application Interface**
   - Web-based UI for configuring and running JSON:API tests
   - Real-time validation results with detailed error reporting
-  - Support for multiple API endpoint configurations
-  - Export/import test configurations and results
+  - Support for multiple HTTP methods (GET, POST, PUT, PATCH, DELETE)
+  - Authentication support (Bearer tokens, API keys, Basic auth)
+  - Custom header management for complex API requirements
 
-- ✅ **Multi-Step Workflow Testing**
-  - **GET Collection**: Retrieve a list of resources and validate structure
-  - **GET Individual**: Fetch individual resources from collection results
-  - **POST Create**: Copy existing resource data to create new entries
-  - **PATCH Update**: Modify created resources and validate update behavior
-  - **DELETE**: Remove test resources and validate proper cleanup
-  - **Relationship Testing**: Validate related resource inclusion and linking
-
-- ✅ **Request Generation & Validation**
-  - Generate JSON:API compliant requests for all HTTP methods
-  - Validate request structure before sending to target API
-  - Support for complex query parameters (include, fields, sort, pagination)
-  - Custom header management and content-type validation
-
-- ✅ **Response Analysis**
-  - Comprehensive JSON:API v1.1 specification compliance checking
+- **Comprehensive Validation Engine**
   - Document structure validation (data, errors, meta, links, included, jsonapi)
   - Resource object validation with type/id requirements
   - Error object structure and HTTP status alignment
   - Content-Type and media type parameter validation
+  - Query parameter validation (include, fields, sort, pagination)
+  - Relationship structure validation
 
-### Usage Interface
+- **Advanced Reporting Features**
+  - Detailed validation results with expandable sections
+  - Export capabilities (JSON, Markdown, PDF formats)
+  - Suggestions for fixing validation issues
+  - Performance metrics and request/response details
 
-#### Single-Page Application (Planned)
+## Getting Started
 
-The validator will be implemented as a web-based single-page application:
+### Prerequisites
 
-```javascript
-// Configuration for testing a JSON:API endpoint
-const testConfig = {
-  baseUrl: 'https://api.example.com',
-  resourceType: 'posts',
-  authHeaders: {
-    'Authorization': 'Bearer your-token-here'
-  },
-  testScenarios: [
-    'list-resources',
-    'get-individual', 
-    'create-resource',
-    'update-resource',
-    'delete-resource',
-    'test-relationships'
-  ]
-};
+- Node.js 20 or later
+- Modern web browser
 
-// Run comprehensive JSON:API validation
-const results = await runJsonApiTests(testConfig);
-```
+### Installation and Setup
 
-#### Test Workflow Example
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/CrisisTextLine/jsonapi-validator.git
+   cd jsonapi-validator
+   ```
 
-1. **List Resources** (`GET /posts`)
-   - Validate response structure and resource collection format
-   - Extract sample resource for further testing
+2. **Install Dependencies**
+   ```bash
+   npm ci
+   ```
 
-2. **Get Individual Resource** (`GET /posts/123`)
-   - Validate individual resource object structure
-   - Test sparse fieldsets and include parameters
+3. **Start the Application**
+   ```bash
+   # Start both validator and mock server
+   npm start
+   
+   # Or start individually
+   npm run dev          # Validator app only (http://localhost:3000)
+   npm run mock-server  # Mock server only (http://localhost:3001)
+   ```
 
-3. **Create Resource** (`POST /posts`)
-   - Copy existing resource data to create test payload
-   - Validate creation response and resource ID assignment
+4. **Open the Validator**
+   Navigate to http://localhost:3000 in your browser
 
-4. **Update Resource** (`PATCH /posts/new-id`)
-   - Modify created resource attributes
-   - Validate update response and changed fields
+### Using the Validator
 
-5. **Delete Resource** (`DELETE /posts/new-id`)
-   - Clean up test data
-   - Validate proper deletion response
+1. **Configure Your API Endpoint**
+   - Enter your JSON:API endpoint URL (e.g., `https://api.example.com/posts`)
+   - Select HTTP method (GET, POST, PUT, PATCH, DELETE)
+   - Configure authentication if required (Bearer token, API key, Basic auth)
+   - Add custom headers as needed
+
+2. **Run Validation**
+   - Click "Start Validation" to test your endpoint
+   - View comprehensive results showing compliance status
+   - Export results in JSON, Markdown, or PDF format
+
+3. **Test with Mock Server**
+   - Use the included mock server for testing: `http://localhost:3001/api/articles`
+   - Try invalid endpoints to test error detection: `http://localhost:3001/api/invalid/no-jsonapi`
 
 ## Architecture Overview
 
-### Single-Page Application Structure
+## Architecture Overview
+
+### Application Structure
 
 ```
 src/
-├── components/         # React/Vue components for the UI
-│   ├── TestRunner.js          # Main test execution component
-│   ├── ConfigForm.js          # API endpoint configuration
-│   ├── ResultsPanel.js        # Validation results display
-│   └── WorkflowSteps.js       # Multi-step test workflow UI
-├── validators/         # Core JSON:API validation logic
-│   ├── DocumentValidator.js   # Document structure validation
-│   ├── ResourceValidator.js   # Resource object validation
-│   ├── ErrorValidator.js      # Error response validation
-│   └── QueryValidator.js      # Query parameter validation
-├── client/            # HTTP client for API requests
-│   ├── RequestGenerator.js    # Generate JSON:API compliant requests
-│   ├── ResponseHandler.js     # Process and validate API responses
-│   └── WorkflowEngine.js      # Multi-step test execution
-├── utils/             # Shared utilities
-│   ├── JsonApiHelper.js       # JSON:API structure helpers
-│   └── ValidationReporter.js  # Format validation results
-└── app.js             # Main application entry point
+├── components/                    # React UI components
+│   ├── ConfigForm.jsx            # API endpoint configuration form
+│   ├── TestRunner.jsx            # Test execution controller  
+│   ├── ResultsPanel.jsx          # Basic validation results display
+│   └── EnhancedResultsPanel.jsx  # Advanced results with export features
+├── validators/                    # JSON:API validation logic
+│   ├── DocumentValidator.js      # Document structure validation
+│   ├── ResourceValidator.js      # Resource object validation
+│   ├── ErrorValidator.js         # Error response validation
+│   ├── QueryValidator.js         # Query parameter validation
+│   ├── PaginationValidator.js    # Pagination validation
+│   └── [8 more validators...]    # Comprehensive validation suite
+├── utils/                        # Core utilities
+│   ├── ValidationService.js      # Main validation orchestration
+│   ├── ValidationReporter.js     # Report formatting and export
+│   ├── ApiClient.js              # HTTP request client
+│   └── UrlValidator.js           # URL validation utilities
+├── App.jsx                       # Main application component
+└── main.jsx                      # Application entry point
 ```
 
-### Validation Workflow
+### Mock Server for Testing
 
-1. **Configuration**: User specifies target JSON:API endpoint and authentication
-2. **Request Generation**: Create spec-compliant requests for each test scenario
-3. **API Communication**: Execute HTTP requests against target endpoint
-4. **Response Validation**: Validate each response against JSON:API v1.1 spec
-5. **Result Reporting**: Display detailed validation results with actionable feedback
-6. **Multi-Step Testing**: Chain operations (list → get → create → update → delete) for comprehensive testing
+The included mock server (`mock-server/`) provides:
+- Compliant JSON:API v1.1 endpoints for testing
+- Sample data for articles, people, and comments
+- Both valid and intentionally invalid endpoints
+- Support for query parameters, relationships, and CRUD operations
+
+### Technology Stack
+
+- **Frontend**: React 19.1.1 with Vite 7.1.5 build system
+- **Validation**: Custom JSON:API v1.1 compliance engine
+- **Mock Server**: Express.js with CORS support
+- **Code Quality**: ESLint with React plugins
 
 ## JSON:API v1.1 Compliance
 
@@ -156,43 +161,61 @@ This validator aims for complete compliance with the [JSON:API v1.1 specificatio
 
 ## Development Status
 
-🚧 **This project is in early development**
+✅ **The JSON:API Validator is fully implemented and ready for use**
 
-### Current Phase: Planning and Architecture Design
+### Completed Features
 
-- [x] Repository setup and initial documentation
-- [x] GitHub Copilot instructions configuration
-- [x] Architecture planning and documentation
-- [ ] Core validation engine implementation
-- [ ] Individual validation rules implementation
-- [ ] CLI interface development
-- [ ] Programmatic API development
-- [ ] Test suite implementation
-- [ ] Documentation and examples
-- [ ] Performance optimization
-- [ ] Release preparation
+- [x] Repository setup and documentation
+- [x] React-based single-page application
+- [x] Comprehensive JSON:API v1.1 validation engine
+- [x] Mock server with test endpoints
+- [x] Authentication support (Bearer, API Key, Basic Auth)
+- [x] Custom header management
+- [x] Advanced reporting with export capabilities
+- [x] Build system and development workflow
+- [x] ESLint code quality checks
+
+### Available Scripts
+
+```bash
+npm ci              # Install dependencies (always use ci for consistency)
+npm run lint        # Run ESLint (must pass with 0 warnings)
+npm run build       # Build for production
+npm run dev         # Start development server (http://localhost:3000)
+npm run mock-server # Start mock JSON:API server (http://localhost:3001)
+npm start           # Start both validator and mock server
+npm run preview     # Preview production build
+```
 
 ## Contributing
 
-We welcome contributions! This project is sponsored by [Crisis Text Line](https://www.crisistextline.org/) and follows our contribution guidelines.
+We welcome contributions! This project is sponsored by [Crisis Text Line](https://www.crisistextline.org/).
 
 ### Getting Started
 
 1. **Fork and Clone**: Fork this repository and clone your fork
-2. **Install Dependencies**: `npm install` (when package.json is added)
-3. **Run Tests**: `npm test` (when test suite is implemented)
-4. **Follow Guidelines**: See `.github/copilot-instructions.md` for detailed development guidelines
+2. **Install Dependencies**: `npm ci` 
+3. **Development**: `npm start` to run both validator and mock server
+4. **Linting**: `npm run lint` (must pass with 0 warnings before committing)
+5. **Build**: `npm run build` to verify production build
+6. **Follow Guidelines**: See `.github/copilot-instructions.md` for detailed development guidelines
 
 ### Development Workflow
 
-- Follow JSON:API specification references in all validation code
-- Include comprehensive tests for each validation rule
-- Update documentation when adding features
-- Ensure backward compatibility considerations
+- Always run `npm ci` instead of `npm install` for consistent builds
+- Ensure `npm run lint` passes with zero warnings
+- Test against the mock server endpoints during development
+- The mock server provides both valid and invalid endpoints for comprehensive testing
 
-## License
+### Testing the Validator
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Use the included test script to verify mock server functionality:
+```bash
+chmod +x test-endpoints.sh
+./test-endpoints.sh
+```
+
+---
 
 ## Resources
 
@@ -200,6 +223,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [JSON:API Examples](https://jsonapi.org/examples/)
 - [Crisis Text Line](https://www.crisistextline.org/) - Project Sponsor
 
----
+## License
 
-**Note**: This project is under active development. The API and features described above represent the planned implementation and may change as development progresses.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
