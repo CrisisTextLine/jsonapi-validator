@@ -5,6 +5,8 @@
  * Based on specification: https://jsonapi.org/format/1.1/#content-negotiation
  */
 
+import { isValidUrl } from '../utils/UrlValidator.js'
+
 /**
  * Validates JSON:API content negotiation headers and media types
  * @param {Object} headers - Request or response headers
@@ -394,20 +396,6 @@ function parseAcceptHeader(accept) {
  */
 function isValidExtensionUrl(url) {
   // Extension URLs should be valid URLs
-  try {
-    new URL(url)
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
- * Validates if a string is a valid URL (from utils)
- * @param {string} url - URL to validate  
- * @returns {boolean} True if valid URL
- */
-function isValidUrl(url) {
   try {
     new URL(url)
     return true

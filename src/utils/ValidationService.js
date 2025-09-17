@@ -64,7 +64,7 @@ export async function runValidation(config) {
       }
     })
     
-    // Step 4: Validate request body if present (temporarily commented out for debugging)
+    // Step 4: Validate request body if present (temporarily disabled for debugging)
     // if (['POST', 'PUT', 'PATCH'].includes(config.httpMethod) && config.requestBody) {
 
     // Step 5: Make the API request
@@ -132,8 +132,35 @@ export async function runValidation(config) {
       }
     })
 
-    // Step 6: Validate content negotiation (temporarily commented out for debugging)
-    // const contentNegotiationValidation = validateContentNegotiation(response.headers, {
+    // Step 6: Validate content negotiation
+    const contentNegotiationValidation = validateContentNegotiation(response.headers, {
+      validateContentType: true,
+      validateAccept: false // We validate the response Content-Type, not request Accept
+    })
+    
+    // Add content negotiation validation results
+    results.details.push(...contentNegotiationValidation.details)
+    contentNegotiationValidation.errors.forEach(error => {
+      results.details.push({
+        test: error.test,
+        status: 'failed',
+        message: error.message
+      })
+      results.summary.failed++
+    })
+    contentNegotiationValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+    contentNegotiationValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
 
     // Step 7: Check JSON parsing
     if (response.parseError) {
@@ -252,7 +279,7 @@ export async function runValidation(config) {
         }
       })
 
-      // Step 10b: Enhanced JSON:API object validation (temporarily commented out for debugging)
+      // Step 10b: Enhanced JSON:API object validation (temporarily disabled for debugging)
       // if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'jsonapi')) {
 
       // Step 11: Validate sparse fieldsets (if response has data and query parameters exist)
