@@ -9,6 +9,7 @@ import { validateDocument } from '../validators/DocumentValidator.js'
 import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.js'
 import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
 import { validatePagination } from '../validators/PaginationValidator.js'
+import { validateHttpStatus } from '../validators/HttpStatusValidator.js'
 import { createComprehensiveReport } from '../utils/ValidationReporter.js'
 
 /**
@@ -131,6 +132,39 @@ export async function runValidation(config) {
       })
       results.summary.failed++
     }
+
+    // Step 5b: Validate HTTP status code
+    const statusValidation = validateHttpStatus(response.status, config.httpMethod, response.data)
+    
+    // Add HTTP status validation results
+    results.details.push(...statusValidation.details)
+    
+    // Add any errors
+    statusValidation.errors.forEach(error => {
+      results.details.push({
+        test: error.test,
+        status: 'failed',
+        message: error.message
+      })
+      results.summary.failed++
+    })
+
+    // Add any warnings
+    statusValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+
+    // Count passed tests from status validation
+    statusValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
 
     // Step 6: Validate query parameters
     const queryParamValidation = validateQueryParameters(config.apiUrl, response.data)

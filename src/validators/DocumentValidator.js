@@ -567,17 +567,154 @@ function validateDocumentLinkValue(link, context, linkName) {
       }
     }
 
-    // Check for additional members beyond href and meta
+    // Validate optional JSON:API v1.1 link object members
+    const validLinkMembers = ['href', 'rel', 'describedby', 'title', 'type', 'hreflang', 'meta']
+    
+    // Validate 'rel' member if present
+    if (Object.prototype.hasOwnProperty.call(link, 'rel')) {
+      if (typeof link.rel !== 'string' || link.rel.length === 0) {
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link Object Rel',
+          context,
+          message: 'Link object "rel" must be a non-empty string'
+        })
+      } else {
+        results.details.push({
+          test: 'Document Link Object Rel',
+          status: 'passed',
+          context,
+          message: `Link rel type is valid: "${link.rel}"`
+        })
+      }
+    }
+    
+    // Validate 'describedby' member if present
+    if (Object.prototype.hasOwnProperty.call(link, 'describedby')) {
+      if (typeof link.describedby !== 'string' || !isValidUrl(link.describedby)) {
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link Object Describedby',
+          context,
+          message: 'Link object "describedby" must be a valid URL'
+        })
+      } else {
+        results.details.push({
+          test: 'Document Link Object Describedby',
+          status: 'passed',
+          context,
+          message: 'Link describedby URL is valid'
+        })
+      }
+    }
+    
+    // Validate 'title' member if present
+    if (Object.prototype.hasOwnProperty.call(link, 'title')) {
+      if (typeof link.title !== 'string' || link.title.length === 0) {
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link Object Title',
+          context,
+          message: 'Link object "title" must be a non-empty string'
+        })
+      } else {
+        results.details.push({
+          test: 'Document Link Object Title',
+          status: 'passed',
+          context,
+          message: `Link title is valid: "${link.title}"`
+        })
+      }
+    }
+    
+    // Validate 'type' member if present
+    if (Object.prototype.hasOwnProperty.call(link, 'type')) {
+      if (typeof link.type !== 'string' || link.type.length === 0) {
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link Object Type',
+          context,
+          message: 'Link object "type" must be a non-empty string (media type)'
+        })
+      } else {
+        // Basic media type validation
+        if (!link.type.includes('/')) {
+          results.warnings.push({
+            test: 'Document Link Object Type',
+            context,
+            message: `Link type "${link.type}" should be a valid media type (e.g., "application/json")`
+          })
+        } else {
+          results.details.push({
+            test: 'Document Link Object Type',
+            status: 'passed',
+            context,
+            message: `Link media type is valid: "${link.type}"`
+          })
+        }
+      }
+    }
+    
+    // Validate 'hreflang' member if present
+    if (Object.prototype.hasOwnProperty.call(link, 'hreflang')) {
+      if (typeof link.hreflang === 'string') {
+        // Single language tag
+        if (!isValidLanguageTag(link.hreflang)) {
+          results.warnings.push({
+            test: 'Document Link Object Hreflang',
+            context,
+            message: `Link hreflang "${link.hreflang}" should be a valid language tag (e.g., "en", "en-US")`
+          })
+        } else {
+          results.details.push({
+            test: 'Document Link Object Hreflang',
+            status: 'passed',
+            context,
+            message: `Link hreflang is valid: "${link.hreflang}"`
+          })
+        }
+      } else if (Array.isArray(link.hreflang)) {
+        // Array of language tags
+        let allValid = true
+        link.hreflang.forEach(lang => {
+          if (typeof lang !== 'string' || !isValidLanguageTag(lang)) {
+            allValid = false
+          }
+        })
+        if (!allValid) {
+          results.warnings.push({
+            test: 'Document Link Object Hreflang',
+            context,
+            message: 'Link hreflang array should contain valid language tags'
+          })
+        } else {
+          results.details.push({
+            test: 'Document Link Object Hreflang',
+            status: 'passed',
+            context,
+            message: `Link hreflang array is valid: [${link.hreflang.join(', ')}]`
+          })
+        }
+      } else {
+        results.valid = false
+        results.errors.push({
+          test: 'Document Link Object Hreflang',
+          context,
+          message: 'Link object "hreflang" must be a string or array of strings'
+        })
+      }
+    }
+
+    // Check for additional members beyond allowed ones
     const linkKeys = Object.keys(link)
-    const allowedMembers = ['href', 'meta']
-    const additionalMembers = linkKeys.filter(key => !allowedMembers.includes(key))
+    const additionalMembers = linkKeys.filter(key => !validLinkMembers.includes(key))
     
     if (additionalMembers.length > 0) {
       results.valid = false
       results.errors.push({
         test: 'Document Link Object Additional Members',
         context,
-        message: `Document link object contains additional members not allowed: ${additionalMembers.join(', ')}. Only "href" and "meta" are allowed`
+        message: `Document link object contains additional members not allowed: ${additionalMembers.join(', ')}. Allowed members: ${validLinkMembers.join(', ')}`
       })
     } else if (results.valid) {
       results.details.push({
@@ -1014,4 +1151,18 @@ function analyzeRelationshipStructure(allResources) {
     total: totalRelationships,
     bidirectional: Math.floor(bidirectionalCount / 2) // Each bidirectional pair is counted twice
   }
+}
+
+/**
+ * Helper function to validate language tags according to BCP 47
+ * @param {string} langTag - Language tag to validate
+ * @returns {boolean} True if valid language tag format
+ */
+function isValidLanguageTag(langTag) {
+  if (!langTag || typeof langTag !== 'string') return false
+  
+  // Basic BCP 47 language tag validation
+  // Simplified regex for common patterns: language[-script][-region][-variant]
+  const langTagRegex = /^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2}|[0-9]{3})?(-[a-zA-Z0-9]{5,8}|-[0-9][a-zA-Z0-9]{3})*$/
+  return langTagRegex.test(langTag)
 }
