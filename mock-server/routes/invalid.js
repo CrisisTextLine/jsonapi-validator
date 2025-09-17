@@ -116,6 +116,45 @@ router.get('/invalid/reserved-chars', (req, res) => {
   });
 });
 
+// Invalid endpoint: Comprehensive member name validation violations
+router.get('/invalid/member-names', (req, res) => {
+  res.json({
+    jsonapi: { version: '1.1' },
+    data: [{
+      id: '1',
+      type: 'BlogPost', // Uppercase violation
+      attributes: {
+        'title': 'Valid title',
+        'User-Name': 'Invalid - uppercase',  // Uppercase violation
+        'post--content': 'Invalid content',  // Consecutive dashes
+        'created_at': '2023-01-01',         // Valid
+        'view-count': '100'                 // Valid
+      },
+      relationships: {
+        'Author': {  // Uppercase violation
+          data: { type: 'users', id: '1' }
+        },
+        'blog__category': {  // Consecutive underscores
+          data: { type: 'categories', id: '1' }
+        },
+        'comments': {  // Valid
+          data: [{ type: 'comments', id: '1' }]
+        }
+      },
+      meta: {
+        'Created-By': 'admin',      // Uppercase violation
+        'revision__count': 5,       // Consecutive underscores
+        'last-modified': '2023-01-01'  // Valid
+      }
+    }],
+    meta: {
+      'Total-Count': 100,    // Uppercase violation
+      'page__size': 10,      // Consecutive underscores
+      'current-page': 1      // Valid
+    }
+  });
+});
+
 // Endpoint that simulates server timeout/slow response
 router.get('/invalid/timeout', (req, res) => {
   // Don't respond for 30 seconds to test timeout handling
