@@ -6,6 +6,7 @@
  */
 
 import { validateResourceObject, validateResourceCollection } from './ResourceValidator.js'
+import { validateErrorsMember } from './ErrorValidator.js'
 import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
 
 /**
@@ -87,6 +88,22 @@ export function validateDocument(response) {
     if (!dataValidation.valid) {
       results.valid = false
       results.errors.push(...dataValidation.errors)
+    }
+    if (dataValidation.warnings) {
+      results.warnings.push(...dataValidation.warnings)
+    }
+  }
+
+  // Step 4b: Validate errors structure if present
+  if (hasErrors) {
+    const errorsValidation = validateErrorsMember(response.errors)
+    results.details.push(...errorsValidation.details)
+    if (!errorsValidation.valid) {
+      results.valid = false
+      results.errors.push(...errorsValidation.errors)
+    }
+    if (errorsValidation.warnings) {
+      results.warnings.push(...errorsValidation.warnings)
     }
   }
 
