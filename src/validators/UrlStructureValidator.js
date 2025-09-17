@@ -8,10 +8,9 @@
 /**
  * Validates JSON:API URL structure and patterns
  * @param {string} url - The URL to validate
- * @param {Object} options - Validation options
  * @returns {Object} Validation result with success/failure and details
  */
-export function validateUrlStructure(url, options = {}) {
+export function validateUrlStructure(url) {
   const results = {
     valid: true,
     errors: [],
@@ -47,11 +46,11 @@ export function validateUrlStructure(url, options = {}) {
   })
 
   // Validate URL path structure
-  const pathValidation = validateUrlPath(parsedUrl.pathname, options)
+  const pathValidation = validateUrlPath(parsedUrl.pathname)
   mergeResults(results, pathValidation)
 
   // Validate query parameters
-  const queryValidation = validateUrlQuery(parsedUrl.searchParams, options)
+  const queryValidation = validateUrlQuery(parsedUrl.searchParams)
   mergeResults(results, queryValidation)
 
   // Validate fragment (should not be present)
@@ -68,10 +67,9 @@ export function validateUrlStructure(url, options = {}) {
 /**
  * Validates JSON:API URL path structure
  * @param {string} pathname - URL pathname to validate
- * @param {Object} options - Validation options
  * @returns {Object} Validation result
  */
-function validateUrlPath(pathname, options = {}) {
+function validateUrlPath(pathname) {
   const results = {
     valid: true,
     errors: [],
@@ -120,7 +118,7 @@ function validateUrlPath(pathname, options = {}) {
   }
 
   // General path validation
-  const generalValidation = validateGeneralPathStructure(pathSegments, options)
+  const generalValidation = validateGeneralPathStructure(pathSegments)
   mergeResults(results, generalValidation)
 
   return results
@@ -333,10 +331,9 @@ function validateRelationshipUrl(pathSegments) {
 /**
  * Validates general path structure requirements
  * @param {Array} pathSegments - Array of path segments
- * @param {Object} options - Validation options
  * @returns {Object} Validation result
  */
-function validateGeneralPathStructure(pathSegments, options = {}) {  // eslint-disable-line no-unused-vars
+function validateGeneralPathStructure(pathSegments) {
   const results = {
     valid: true,
     errors: [],
@@ -384,10 +381,9 @@ function validateGeneralPathStructure(pathSegments, options = {}) {  // eslint-d
 /**
  * Validates URL query parameters structure
  * @param {URLSearchParams} searchParams - URL search parameters
- * @param {Object} options - Validation options
  * @returns {Object} Validation result
  */
-function validateUrlQuery(searchParams, options = {}) {  // eslint-disable-line no-unused-vars
+function validateUrlQuery(searchParams) {
   const results = {
     valid: true,
     errors: [],
