@@ -1,0 +1,38 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('JSON:API Validator - Basic Functionality', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+  });
+
+  test('should display the main interface', async ({ page }) => {
+    // Check main title
+    await expect(page.locator('h1')).toHaveText('JSON:API Validator');
+    
+    // Check description
+    await expect(page.getByText('Validate JSON:API v1.1 specification compliance')).toBeVisible();
+    
+    // Check main sections
+    await expect(page.getByText('Configuration')).toBeVisible();
+    await expect(page.getByText('Results')).toBeVisible();
+  });
+
+  test('should have configuration form elements', async ({ page }) => {
+    // Check API URL input
+    await expect(page.locator('input[type="text"]')).toBeVisible();
+    
+    // Check HTTP method selector
+    await expect(page.locator('select')).toBeVisible();
+    
+    // Check run validation button
+    await expect(page.getByRole('button', { name: /run validation/i })).toBeVisible();
+  });
+
+  test('should show validation results area', async ({ page }) => {
+    // Check that results panel exists
+    await expect(page.locator('.results-panel')).toBeVisible();
+    
+    // Should show empty state initially
+    await expect(page.getByText('Running comprehensive JSON:API validation suite')).toBeVisible();
+  });
+});

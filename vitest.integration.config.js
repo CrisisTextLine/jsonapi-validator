@@ -1,21 +1,18 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+// Integration test configuration
 export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 3000,
-    open: true
-  },
   test: {
-    environment: 'jsdom',
-    setupFiles: ['./src/test-setup.js'],
+    environment: 'node',
+    include: ['src/**/*.integration.test.js', 'tests/integration/**/*.test.js'],
+    setupFiles: ['./tests/integration/setup.js'],
+    testTimeout: 30000, // Longer timeout for integration tests
     globals: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      include: ['src/**/*.js'],
       exclude: [
         'node_modules/',
         'src/test-setup.js',
