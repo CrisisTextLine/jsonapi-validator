@@ -8,6 +8,7 @@ import { makeRequest } from '../utils/ApiClient.js'
 import { validateDocument } from '../validators/DocumentValidator.js'
 import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.js'
 import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
+import { validatePagination } from '../validators/PaginationValidator.js'
 
 /**
  * Runs comprehensive JSON:API validation on an endpoint
@@ -228,6 +229,43 @@ export async function runValidation(config) {
 
         // Count passed tests from fieldset validation
         fieldsetValidation.details.forEach(detail => {
+          if (detail.status === 'passed') {
+            results.summary.passed++
+          }
+        })
+      }
+
+      // Step 9: Validate pagination (if response has data array)  
+      if (response.data && Array.isArray(response.data)) {
+        const paginationValidation = validatePagination(response.data, config.apiUrl, queryParams)
+        
+        // Add pagination validation results
+        results.details.push(...paginationValidation.details)
+        
+        // Add any errors
+        paginationValidation.errors.forEach(error => {
+          results.details.push({
+            test: error.test,
+            status: 'failed',
+            message: error.message,
+            context: error.context
+          })
+          results.summary.failed++
+        })
+
+        // Add any warnings  
+        paginationValidation.warnings.forEach(warning => {
+          results.details.push({
+            test: warning.test,
+            status: 'warning',
+            message: warning.message,
+            context: warning.context
+          })
+          results.summary.warnings++
+        })
+
+        // Count passed tests from pagination validation
+        paginationValidation.details.forEach(detail => {
           if (detail.status === 'passed') {
             results.summary.passed++
           }
