@@ -64,8 +64,53 @@ export async function runValidation(config) {
       }
     })
     
-    // Step 4: Validate request body if present (temporarily disabled for debugging)
-    // if (['POST', 'PUT', 'PATCH'].includes(config.httpMethod) && config.requestBody) {
+    // Step 4: Validate request body if present
+    // Note: Currently only validates for POST/PATCH with request body
+    // GET requests don't have request bodies to validate
+    if (['POST', 'PUT', 'PATCH'].includes(config.httpMethod) && config.requestBody) {
+      try {
+        const requestBody = typeof config.requestBody === 'string' 
+          ? JSON.parse(config.requestBody) 
+          : config.requestBody
+        
+        const requestValidation = validateRequestDocument(requestBody, config.httpMethod, {
+          readOnlyFields: config.readOnlyFields || []
+        })
+        
+        // Add request validation results
+        results.details.push(...requestValidation.details)
+        requestValidation.errors.forEach(error => {
+          results.details.push({
+            test: error.test,
+            status: 'failed',
+            message: error.message,
+            context: error.context
+          })
+          results.summary.failed++
+        })
+        requestValidation.warnings.forEach(warning => {
+          results.details.push({
+            test: warning.test,
+            status: 'warning',
+            message: warning.message,
+            context: warning.context
+          })
+          results.summary.warnings++
+        })
+        requestValidation.details.forEach(detail => {
+          if (detail.status === 'passed') {
+            results.summary.passed++
+          }
+        })
+      } catch (error) {
+        results.details.push({
+          test: 'Request Body Parsing',
+          status: 'failed',
+          message: `Failed to parse request body as JSON: ${error.message}`
+        })
+        results.summary.failed++
+      }
+    }
 
     // Step 5: Make the API request
     const response = await makeRequest(config)
@@ -279,8 +324,34 @@ export async function runValidation(config) {
         }
       })
 
-      // Step 10b: Enhanced JSON:API object validation (temporarily disabled for debugging)
-      // if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'jsonapi')) {
+      // Step 10b: Enhanced JSON:API object validation
+      if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'jsonapi')) {
+        const jsonApiObjectValidation = validateJsonApiObjectExtended(response.data.jsonapi)
+        
+        // Add JSON:API object validation results
+        results.details.push(...jsonApiObjectValidation.details)
+        jsonApiObjectValidation.errors.forEach(error => {
+          results.details.push({
+            test: error.test,
+            status: 'failed',
+            message: error.message
+          })
+          results.summary.failed++
+        })
+        jsonApiObjectValidation.warnings.forEach(warning => {
+          results.details.push({
+            test: warning.test,
+            status: 'warning',
+            message: warning.message
+          })
+          results.summary.warnings++
+        })
+        jsonApiObjectValidation.details.forEach(detail => {
+          if (detail.status === 'passed') {
+            results.summary.passed++
+          }
+        })
+      }
 
       // Step 11: Validate sparse fieldsets (if response has data and query parameters exist)
       if (response.data && Object.keys(queryParams).length > 0) {
