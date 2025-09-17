@@ -6,6 +6,7 @@
 
 import { makeRequest } from '../utils/ApiClient.js'
 import { validateDocument } from '../validators/DocumentValidator.js'
+import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.js'
 import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
 
 /**
@@ -17,7 +18,19 @@ export async function runValidation(config) {
   const startTime = Date.now()
   
   try {
-    // Step 1: Make the API request
+    // Extract query parameters from URL for validation
+    let queryParams = {}
+    try {
+      const url = new URL(config.apiUrl)
+      queryParams = Object.fromEntries(url.searchParams.entries())
+    } catch {
+      // If URL parsing fails, we'll continue without query parameter validation
+    }
+
+    // Step 1: Validate query parameter syntax (before making request)
+    const queryValidation = validateFieldsetSyntax(queryParams)
+    
+    // Step 2: Make the API request
     const response = await makeRequest(config)
     
     if (!response.success) {
@@ -41,7 +54,7 @@ export async function runValidation(config) {
       }
     }
 
-    // Step 2: Validate response structure
+    // Step 3: Validate response structure
     const results = {
       timestamp: new Date().toISOString(),
       endpoint: config.apiUrl,
@@ -58,7 +71,31 @@ export async function runValidation(config) {
       details: []
     }
 
-    // Step 3: Check JSON parsing
+    // Add query parameter validation results
+    results.details.push(...queryValidation.details)
+    queryValidation.errors.forEach(error => {
+      results.details.push({
+        test: error.test,
+        status: 'failed',
+        message: error.message
+      })
+      results.summary.failed++
+    })
+    queryValidation.warnings.forEach(warning => {
+      results.details.push({
+        test: warning.test,
+        status: 'warning',
+        message: warning.message
+      })
+      results.summary.warnings++
+    })
+    queryValidation.details.forEach(detail => {
+      if (detail.status === 'passed') {
+        results.summary.passed++
+      }
+    })
+
+    // Step 4: Check JSON parsing
     if (response.parseError) {
       results.details.push({
         test: 'JSON Parsing',
@@ -75,7 +112,7 @@ export async function runValidation(config) {
       results.summary.passed++
     }
 
-    // Step 4: Check Content-Type header
+    // Step 5: Check Content-Type header
     const contentType = response.headers['content-type'] || ''
     if (contentType.includes('application/vnd.api+json')) {
       results.details.push({
@@ -93,7 +130,7 @@ export async function runValidation(config) {
       results.summary.failed++
     }
 
-    // Step 5: Validate query parameters
+    // Step 6: Validate query parameters
     const queryParamValidation = validateQueryParameters(config.apiUrl, response.data)
     
     // Add query parameter validation results  
@@ -126,7 +163,7 @@ export async function runValidation(config) {
       }
     })
 
-    // Step 6: Validate document structure (if JSON parsed successfully)
+    // Step 7: Validate document structure (if JSON parsed successfully)
     if (!response.parseError && response.data !== null) {
       const documentValidation = validateDocument(response.data)
       
@@ -159,6 +196,43 @@ export async function runValidation(config) {
           results.summary.passed++
         }
       })
+
+      // Step 8: Validate sparse fieldsets (if response has data and query parameters exist)
+      if (response.data && Object.keys(queryParams).length > 0) {
+        const fieldsetValidation = validateSparseFieldsets(response.data, queryParams)
+        
+        // Add sparse fieldset validation results
+        results.details.push(...fieldsetValidation.details)
+        
+        // Add any errors
+        fieldsetValidation.errors.forEach(error => {
+          results.details.push({
+            test: error.test,
+            status: 'failed',
+            message: error.message,
+            context: error.context
+          })
+          results.summary.failed++
+        })
+
+        // Add any warnings  
+        fieldsetValidation.warnings.forEach(warning => {
+          results.details.push({
+            test: warning.test,
+            status: 'warning',
+            message: warning.message,
+            context: warning.context
+          })
+          results.summary.warnings++
+        })
+
+        // Count passed tests from fieldset validation
+        fieldsetValidation.details.forEach(detail => {
+          if (detail.status === 'passed') {
+            results.summary.passed++
+          }
+        })
+      }
     }
 
     // Calculate totals
