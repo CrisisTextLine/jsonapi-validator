@@ -614,10 +614,29 @@ function validateJsonApiMember(jsonapi) {
   if (typeof jsonapi !== 'object' || jsonapi === null) {
     results.valid = false
     results.errors.push({
-      test: 'JSON:API Member Structure',
+      test: 'JSON:API Version Object Structure',
       message: 'JSON:API member must be an object'
     })
     return results
+  }
+
+  // Check for additional members beyond allowed ones
+  const allowedMembers = ['version', 'meta']
+  const presentMembers = Object.keys(jsonapi)
+  const additionalMembers = presentMembers.filter(member => !allowedMembers.includes(member))
+
+  if (additionalMembers.length > 0) {
+    results.valid = false
+    results.errors.push({
+      test: 'JSON:API Version Object Additional Members',
+      message: `JSON:API object contains additional members not allowed by spec: ${additionalMembers.join(', ')}. Only "version" and "meta" are allowed`
+    })
+  } else {
+    results.details.push({
+      test: 'JSON:API Version Object Additional Members',
+      status: 'passed',
+      message: 'JSON:API object contains only allowed members'
+    })
   }
 
   // Check for version if present
@@ -625,23 +644,85 @@ function validateJsonApiMember(jsonapi) {
     if (typeof jsonapi.version !== 'string') {
       results.valid = false
       results.errors.push({
-        test: 'JSON:API Member Structure',
+        test: 'JSON:API Version String Format',
         message: 'JSON:API version must be a string'
       })
     } else {
-      results.details.push({
-        test: 'JSON:API Member Structure',
-        status: 'passed',
-        message: `JSON:API version specified: ${jsonapi.version}`
-      })
+      // Validate supported version values
+      const supportedVersions = ['1.0', '1.1']
+      if (!supportedVersions.includes(jsonapi.version)) {
+        results.valid = false
+        results.errors.push({
+          test: 'JSON:API Version Value',
+          message: `JSON:API version "${jsonapi.version}" is not supported. Supported versions: ${supportedVersions.join(', ')}`
+        })
+      } else {
+        results.details.push({
+          test: 'JSON:API Version Value',
+          status: 'passed',
+          message: `JSON:API version "${jsonapi.version}" is supported`
+        })
+      }
     }
   } else {
     results.details.push({
-      test: 'JSON:API Member Structure',
+      test: 'JSON:API Version Value',
       status: 'passed',
-      message: 'JSON:API object present (version not specified)'
+      message: 'JSON:API object present (version not specified - optional per spec)'
     })
   }
+
+  // Validate optional meta object
+  if (Object.prototype.hasOwnProperty.call(jsonapi, 'meta')) {
+    const metaValidation = validateJsonApiMetaMember(jsonapi.meta)
+    results.details.push(...metaValidation.details)
+    if (!metaValidation.valid) {
+      results.valid = false
+      results.errors.push(...metaValidation.errors)
+    }
+  }
+
+  return results
+}
+
+/**
+ * Validates the meta member within jsonapi object
+ * @param {any} meta - The meta value to validate
+ * @returns {Object} Validation result
+ */
+function validateJsonApiMetaMember(meta) {
+  const results = {
+    valid: true,
+    errors: [],
+    details: []
+  }
+
+  if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) {
+    results.valid = false
+    results.errors.push({
+      test: 'JSON:API Meta Member',
+      message: 'JSON:API "meta" must be an object'
+    })
+    return results
+  }
+
+  const metaKeys = Object.keys(meta)
+  
+  // Validate each meta member name follows JSON:API naming conventions
+  for (const metaName of metaKeys) {
+    const nameValidation = validateMemberName(metaName, `jsonapi.meta.${metaName}`)
+    results.details.push(...nameValidation.details)
+    if (!nameValidation.valid) {
+      results.valid = false
+      results.errors.push(...nameValidation.errors)
+    }
+  }
+
+  results.details.push({
+    test: 'JSON:API Meta Member',
+    status: 'passed',
+    message: `JSON:API meta object contains ${metaKeys.length} metadata field(s)`
+  })
 
   return results
 }
