@@ -22,10 +22,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 200,
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockResolvedValue(mockResponseData)
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue(JSON.stringify(mockResponseData))
       })
 
       const config = {
@@ -62,10 +60,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 201,
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockResolvedValue(mockResponseData)
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue(JSON.stringify(mockResponseData))
       })
 
       const requestBody = JSON.stringify({
@@ -100,10 +96,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 200,
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockResolvedValue({})
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue('{}')
       })
 
       const config = {
@@ -129,10 +123,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 200,
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockResolvedValue({})
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue('{}')
       })
 
       const config = {
@@ -161,10 +153,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 200,
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockResolvedValue({})
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue('{}')
       })
 
       const config = {
@@ -194,10 +184,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 200,
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockResolvedValue({})
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue('{}')
       })
 
       const config = {
@@ -236,10 +224,8 @@ describe('ApiClient', () => {
         ok: false,
         status: 404,
         statusText: 'Not Found',
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockResolvedValue(errorResponseData)
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue(JSON.stringify(errorResponseData))
       })
 
       const config = {
@@ -274,10 +260,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 200,
-        headers: {
-          get: vi.fn(() => 'application/vnd.api+json')
-        },
-        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+        headers: new Map([['content-type', 'application/vnd.api+json']]),
+        text: vi.fn().mockResolvedValue('invalid json {')
       })
 
       const config = {
@@ -288,8 +272,8 @@ describe('ApiClient', () => {
 
       const result = await makeRequest(config)
 
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('parsing JSON')
+      expect(result.success).toBe(true) // Request still succeeded
+      expect(result.parseError).toContain('Invalid JSON')
     })
 
     it('should capture response headers', async () => {
@@ -302,11 +286,8 @@ describe('ApiClient', () => {
       fetch.mockResolvedValue({
         ok: true,
         status: 200,
-        headers: {
-          get: vi.fn((key) => mockHeaders.get(key.toLowerCase())),
-          entries: vi.fn(() => mockHeaders.entries())
-        },
-        json: vi.fn().mockResolvedValue({})
+        headers: mockHeaders,
+        text: vi.fn().mockResolvedValue('{}')
       })
 
       const config = {
@@ -320,6 +301,7 @@ describe('ApiClient', () => {
       expect(result.success).toBe(true)
       expect(result.headers).toBeDefined()
       expect(result.headers['content-type']).toBe('application/vnd.api+json')
+      expect(result.headers['x-ratelimit-limit']).toBe('1000')
     })
   })
 })

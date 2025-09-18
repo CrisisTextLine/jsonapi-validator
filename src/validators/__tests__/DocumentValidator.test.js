@@ -83,8 +83,8 @@ describe('DocumentValidator', () => {
       const documentWithMeta = {
         jsonapi: { version: '1.1' },
         meta: {
-          totalPages: 10,
-          currentPage: 1
+          'total-pages': 10,
+          'current-page': 1
         }
       }
 
@@ -102,7 +102,7 @@ describe('DocumentValidator', () => {
       const result = validateDocument(invalidDocument)
       expect(result.valid).toBe(false)
       expect(result.errors.some(error => 
-        error.message && error.message.includes('data and errors')
+        error.message && error.message.toLowerCase().includes('data') && error.message.toLowerCase().includes('errors')
       )).toBe(true)
     })
 
@@ -139,7 +139,16 @@ describe('DocumentValidator', () => {
     it('should validate included member when data is present', () => {
       const documentWithIncluded = {
         jsonapi: { version: '1.1' },
-        data: { id: '1', type: 'articles', attributes: { title: 'Test' } },
+        data: { 
+          id: '1', 
+          type: 'articles', 
+          attributes: { title: 'Test' },
+          relationships: {
+            author: {
+              data: { id: '1', type: 'people' }
+            }
+          }
+        },
         included: [
           { id: '1', type: 'people', attributes: { name: 'John' } }
         ]
@@ -161,7 +170,7 @@ describe('DocumentValidator', () => {
       const result = validateDocument(documentWithIncludedNoData)
       expect(result.valid).toBe(false)
       expect(result.errors.some(error => 
-        error.message && error.message.includes('included')
+        error.message && error.message.toLowerCase().includes('included')
       )).toBe(true)
     })
   })

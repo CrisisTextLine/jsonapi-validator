@@ -104,7 +104,7 @@ describe('ResourceValidator', () => {
         attributes: {
           title: 'Test Article',
           body: 'Article content',
-          publishedAt: '2023-01-01T00:00:00Z'
+          'published-at': '2023-01-01T00:00:00Z'
         }
       }
 
