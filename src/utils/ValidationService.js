@@ -24,6 +24,21 @@ import { createComprehensiveReport } from '../utils/ValidationReporter.js'
 export async function runValidation(config) {
   const startTime = Date.now()
   
+  // Initialize results object early to avoid reference errors
+  const results = {
+    timestamp: new Date().toISOString(),
+    endpoint: config.apiUrl,
+    method: config.httpMethod,
+    status: 'completed',
+    summary: {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      warnings: 0
+    },
+    details: []
+  }
+  
   try {
     // Extract query parameters from URL for validation
     let queryParams = {}
@@ -136,22 +151,9 @@ export async function runValidation(config) {
       }
     }
 
-    // Step 3: Validate response structure
-    const results = {
-      timestamp: new Date().toISOString(),
-      endpoint: config.apiUrl,
-      method: config.httpMethod,
-      status: 'completed',
-      httpStatus: response.status,
-      contentType: response.headers['content-type'] || 'unknown',
-      summary: {
-        total: 0,
-        passed: 0,
-        failed: 0,
-        warnings: 0
-      },
-      details: []
-    }
+    // Update results with response information after successful request
+    results.httpStatus = response.status
+    results.contentType = response.headers['content-type'] || 'unknown'
 
     // Add query parameter validation results
     results.details.push(...queryValidation.details)
