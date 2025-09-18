@@ -23,8 +23,15 @@ export default defineConfig({
         'dist/',
         'coverage/',
         '**/*.test.{js,jsx}',
-        '**/*.spec.{js,jsx}'
+        '**/*.spec.{js,jsx}',
+        'tests/**/*',  // Exclude integration and E2E tests from unit test coverage
+        'mock-server/**/*'
       ]
-    }
+    },
+    exclude: [
+      'node_modules/',
+      'tests/**/*',  // Exclude integration and E2E tests from unit tests
+      'mock-server/**/*'
+    ]
   }
 })

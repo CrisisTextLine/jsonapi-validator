@@ -12,7 +12,7 @@
     "dev:full": "concurrently \"npm run dev\" \"npm run mock-server\"",
     "start": "npm run dev:full",
     "test": "vitest",
-    "test:unit": "vitest run --coverage",
+    "test:unit": "vitest run --coverage src/",
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
     "test:integration": "vitest run --config vitest.integration.config.js",
