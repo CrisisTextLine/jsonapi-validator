@@ -67,12 +67,12 @@ export default defineConfig({
     {
       command: 'npm run mock-server',
       port: 3001,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true, // Allow reusing server if already running
     },
     {
       command: 'npm run dev',
       port: 3000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true, // Allow reusing server if already running
     }
   ],
 });

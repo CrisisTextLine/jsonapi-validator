@@ -120,23 +120,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install jq for JSON parsing
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(npm ls @playwright/test --json | jq -r '.dependencies."@playwright/test".version')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/npm
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps || echo "Playwright not installed yet"
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
 
-      - name: Start mock server
-        run: npm run mock-server &
-        env:
-          CI: true
-
-      - name: Start application
-        run: npm run dev &
-        env:
-          CI: true
-
-      - name: Wait for services to be ready
-        run: |
-          timeout 30 bash -c 'until curl -f http://localhost:3001/health; do sleep 1; done'
-          timeout 30 bash -c 'until curl -f http://localhost:3000; do sleep 1; done'
+      - name: Install Playwright system dependencies only
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps
 
       - name: Run Playwright tests
         run: npm run test:e2e || echo "E2E tests not implemented yet"
