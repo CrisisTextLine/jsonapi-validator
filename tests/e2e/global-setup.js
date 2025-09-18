@@ -1,4 +1,4 @@
-const { chromium } = require('@playwright/test');
+import { chromium } from '@playwright/test';
 
 async function globalSetup() {
   console.log('🚀 Starting E2E test setup...');
@@ -32,4 +32,4 @@ async function globalSetup() {
   console.log('🎉 E2E test setup complete!');
 }
 
-module.exports = globalSetup;
+export default globalSetup;
