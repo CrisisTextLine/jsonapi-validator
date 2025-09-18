@@ -1,2 +1,312 @@
-<testsuites id="" name="" tests="0" failures="0" skipped="0" errors="0" time="1.2928400000000002">
+<testsuites id="" name="" tests="70" failures="0" skipped="70" errors="0" time="0.04437599999999998">
+<testsuite name="basic-ui.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="chromium" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testcase name="JSON:API Validator - Basic Functionality › should display the main interface" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should have configuration form elements" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show validation results area with empty state" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show loading state when validation is running" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="mock-server-validation.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="chromium" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Articles Collection" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Individual Article" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Missing JSONAPI Member" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Wrong Content Type" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should test mock server health endpoint" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="validation-workflow.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="chromium" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Endpoint Validation › should validate a valid JSON:API endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should detect validation errors with invalid endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should handle network errors gracefully" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should require valid URL input" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should show loading state during validation" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="basic-ui.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="firefox" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testcase name="JSON:API Validator - Basic Functionality › should display the main interface" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should have configuration form elements" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show validation results area with empty state" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show loading state when validation is running" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="mock-server-validation.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="firefox" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Articles Collection" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Individual Article" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Missing JSONAPI Member" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Wrong Content Type" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should test mock server health endpoint" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="validation-workflow.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="firefox" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Endpoint Validation › should validate a valid JSON:API endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should detect validation errors with invalid endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should handle network errors gracefully" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should require valid URL input" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should show loading state during validation" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="basic-ui.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="webkit" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testcase name="JSON:API Validator - Basic Functionality › should display the main interface" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should have configuration form elements" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show validation results area with empty state" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show loading state when validation is running" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="mock-server-validation.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="webkit" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Articles Collection" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Individual Article" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Missing JSONAPI Member" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Wrong Content Type" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should test mock server health endpoint" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="validation-workflow.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="webkit" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Endpoint Validation › should validate a valid JSON:API endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should detect validation errors with invalid endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should handle network errors gracefully" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should require valid URL input" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should show loading state during validation" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="basic-ui.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="Mobile Chrome" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testcase name="JSON:API Validator - Basic Functionality › should display the main interface" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should have configuration form elements" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show validation results area with empty state" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show loading state when validation is running" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="mock-server-validation.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="Mobile Chrome" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Articles Collection" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Individual Article" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Missing JSONAPI Member" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Wrong Content Type" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should test mock server health endpoint" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="validation-workflow.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="Mobile Chrome" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Endpoint Validation › should validate a valid JSON:API endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should detect validation errors with invalid endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should handle network errors gracefully" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should require valid URL input" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should show loading state during validation" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="basic-ui.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="Mobile Safari" tests="4" failures="0" skipped="4" time="0" errors="0">
+<testcase name="JSON:API Validator - Basic Functionality › should display the main interface" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should have configuration form elements" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show validation results area with empty state" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Basic Functionality › should show loading state when validation is running" classname="basic-ui.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="mock-server-validation.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="Mobile Safari" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Articles Collection" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Valid Individual Article" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Missing JSONAPI Member" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should validate Invalid - Wrong Content Type" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Mock Server Validation Tests › should test mock server health endpoint" classname="mock-server-validation.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="validation-workflow.spec.js" timestamp="2025-09-18T23:40:09.422Z" hostname="Mobile Safari" tests="5" failures="0" skipped="5" time="0" errors="0">
+<testcase name="JSON:API Validator - Endpoint Validation › should validate a valid JSON:API endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should detect validation errors with invalid endpoint" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should handle network errors gracefully" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should require valid URL input" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="JSON:API Validator - Endpoint Validation › should show loading state during validation" classname="validation-workflow.spec.js" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
 </testsuites>

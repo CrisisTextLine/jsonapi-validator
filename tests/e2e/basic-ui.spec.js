@@ -24,15 +24,29 @@ test.describe('JSON:API Validator - Basic Functionality', () => {
     // Check HTTP method selector
     await expect(page.locator('select')).toBeVisible();
     
-    // Check run validation button
-    await expect(page.getByRole('button', { name: /run validation/i })).toBeVisible();
+    // Check start validation button (TestRunner component)
+    await expect(page.getByRole('button', { name: /start validation/i })).toBeVisible();
   });
 
-  test('should show validation results area', async ({ page }) => {
+  test('should show validation results area with empty state', async ({ page }) => {
     // Check that results panel exists
     await expect(page.locator('.results-panel')).toBeVisible();
     
     // Should show empty state initially
-    await expect(page.getByText('Running comprehensive JSON:API validation suite')).toBeVisible();
+    await expect(page.getByText('Configure your API endpoint and click "Start Validation" to begin testing.')).toBeVisible();
+    await expect(page.getByText('The validator will run comprehensive tests against the JSON:API v1.1 specification.')).toBeVisible();
+  });
+
+  test('should show loading state when validation is running', async ({ page }) => {
+    // Fill in a URL that will take some time to validate
+    await page.fill('input[type="text"]', 'http://localhost:3001/api/articles');
+    
+    // Start validation
+    await page.click('button[type="submit"]');
+    
+    // Should show spinner and loading text briefly
+    await expect(page.locator('.spinner')).toBeVisible();
+    await expect(page.getByText('Executing validation tests...')).toBeVisible();
+    await expect(page.getByText('Running comprehensive JSON:API validation suite...')).toBeVisible();
   });
 });
