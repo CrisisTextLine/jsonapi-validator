@@ -18,11 +18,14 @@ test.describe('JSON:API Validator - Basic Functionality', () => {
   });
 
   test('should have configuration form elements', async ({ page }) => {
-    // Check API URL input
-    await expect(page.locator('input[type="text"]')).toBeVisible();
+    // Check API URL input (specific type="url" to avoid ambiguity with header inputs)
+    await expect(page.locator('input[type="url"]#apiUrl')).toBeVisible();
     
     // Check HTTP method selector
-    await expect(page.locator('select')).toBeVisible();
+    await expect(page.locator('select#httpMethod')).toBeVisible();
+    
+    // Check authentication type selector
+    await expect(page.locator('select#authType')).toBeVisible();
     
     // Check start validation button (TestRunner component)
     await expect(page.getByRole('button', { name: /start validation/i })).toBeVisible();
@@ -39,14 +42,14 @@ test.describe('JSON:API Validator - Basic Functionality', () => {
 
   test('should show loading state when validation is running', async ({ page }) => {
     // Fill in a URL that will take some time to validate
-    await page.fill('input[type="text"]', 'http://localhost:3001/api/articles');
+    await page.fill('input[type="url"]#apiUrl', 'http://localhost:3001/api/articles');
     
     // Start validation
-    await page.click('button[type="submit"]');
+    await page.click('button:has-text("Start Validation")');
     
     // Should show spinner and loading text briefly
-    await expect(page.locator('.spinner')).toBeVisible();
-    await expect(page.getByText('Executing validation tests...')).toBeVisible();
-    await expect(page.getByText('Running comprehensive JSON:API validation suite...')).toBeVisible();
+    await expect(page.locator('.spinner')).toBeVisible({ timeout: 2000 });
+    await expect(page.getByText('Executing validation tests...')).toBeVisible({ timeout: 2000 });
+    await expect(page.getByText('Running comprehensive JSON:API validation suite...')).toBeVisible({ timeout: 2000 });
   });
 });

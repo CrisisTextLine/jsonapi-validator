@@ -18,16 +18,27 @@ export default defineConfig({
     ['html'],
     ['junit', { outputFile: 'test-results/junit.xml' }]
   ],
+  /* Global test timeout for localhost testing */
+  timeout: 10000, // 10 seconds for entire test scenarios
+  
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:3000',
+    /* Optimized timeouts for localhost testing */
+    actionTimeout: 1000, // 1 second for clicks, fills, etc
+    navigationTimeout: 2000, // 2 seconds for page loads
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
     /* Record video on failure */
     video: 'retain-on-failure',
+  },
+  
+  /* Configure expect timeout */
+  expect: {
+    timeout: 2000 // 2 seconds for assertions
   },
 
   /* Configure projects for major browsers */
