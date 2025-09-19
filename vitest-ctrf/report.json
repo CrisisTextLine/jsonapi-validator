@@ -10,13 +10,13 @@
       "pending": 0,
       "skipped": 0,
       "other": 0,
-      "start": 1758295963202,
-      "stop": 1758295965616
+      "start": 1758308201287,
+      "stop": 1758308203706
     },
     "tests": [
       {
         "name": "makeRequest",
-        "duration": 15.325122999999849,
+        "duration": 14.721514999999954,
         "status": "passed",
         "message": "",
         "trace": "",
@@ -27,7 +27,7 @@
       },
       {
         "name": "runValidation",
-        "duration": 25.336685000000216,
+        "duration": 31.54040400000008,
         "status": "passed",
         "message": "",
         "trace": "",
@@ -38,7 +38,7 @@
       },
       {
         "name": "validateDocument",
-        "duration": 9.260756000000015,
+        "duration": 9.351460999999972,
         "status": "passed",
         "message": "",
         "trace": "",
@@ -49,7 +49,7 @@
       },
       {
         "name": "validateResourceObject",
-        "duration": 9.10495499999979,
+        "duration": 11.911065999999892,
         "status": "passed",
         "message": "",
         "trace": "",
@@ -60,7 +60,7 @@
       },
       {
         "name": "validateResourceCollection",
-        "duration": 0.8620149999999285,
+        "duration": 1.1410110000001623,
         "status": "passed",
         "message": "",
         "trace": "",
@@ -71,7 +71,7 @@
       },
       {
         "name": "validateMemberName",
-        "duration": 0.7370899999998528,
+        "duration": 1.0696470000000318,
         "status": "passed",
         "message": "",
         "trace": "",

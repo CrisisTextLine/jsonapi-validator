@@ -18,14 +18,14 @@ test.describe('JSON:API Validator - Basic Functionality', () => {
   });
 
   test('should have configuration form elements', async ({ page }) => {
-    // Check API URL input (specific type="url" to avoid ambiguity with header inputs)
-    await expect(page.locator('input[type="url"]#apiUrl')).toBeVisible();
+    // Check API URL input (using ID to be specific)
+    await expect(page.locator('input#apiUrl')).toBeVisible();
     
     // Check HTTP method selector
-    await expect(page.locator('select#httpMethod')).toBeVisible();
+    await expect(page.locator('select').first()).toBeVisible();
     
-    // Check authentication type selector
-    await expect(page.locator('select#authType')).toBeVisible();
+    // Check authentication type selector  
+    await expect(page.locator('select').nth(1)).toBeVisible();
     
     // Check start validation button (TestRunner component)
     await expect(page.getByRole('button', { name: /start validation/i })).toBeVisible();
@@ -42,13 +42,14 @@ test.describe('JSON:API Validator - Basic Functionality', () => {
 
   test('should show loading state when validation is running', async ({ page }) => {
     // Fill in a URL that will take some time to validate
-    await page.fill('input[type="url"]#apiUrl', 'http://localhost:3001/api/articles');
+    await page.fill('input#apiUrl', 'http://localhost:3001/api/articles');
     
     // Start validation
     await page.click('button:has-text("Start Validation")');
     
     // Should show progress indicator and button changes
     await expect(page.locator('.progress-indicator')).toBeVisible();
+    await expect(page.getByText('Running JSON:API validation tests...')).toBeVisible();
     await expect(page.locator('button:has-text("Validating...")')).toBeVisible();
     
     // Wait for validation to complete

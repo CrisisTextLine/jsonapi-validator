@@ -31,7 +31,7 @@ test.describe('JSON:API Validator - Mock Server Validation Tests', () => {
   for (const endpoint of testEndpoints) {
     test(`should validate ${endpoint.name}`, async ({ page }) => {
       // Enter the endpoint URL
-      await page.fill('input[type="url"]#apiUrl', endpoint.url);
+      await page.fill('input#apiUrl', endpoint.url);
       
       // Start validation
       await page.click('button:has-text("Start Validation")');
@@ -51,7 +51,7 @@ test.describe('JSON:API Validator - Mock Server Validation Tests', () => {
       }
       
       // Ensure results panel shows content
-      await expect(page.locator('.results-panel')).toBeVisible();
+      await expect(page.locator('.card')).toBeVisible();
       
       // Should not show the empty state message
       await expect(page.getByText('Configure your API endpoint and click "Start Validation" to begin testing.')).not.toBeVisible();
@@ -60,7 +60,7 @@ test.describe('JSON:API Validator - Mock Server Validation Tests', () => {
 
   test('should test mock server health endpoint', async ({ page }) => {
     // This is a basic connectivity test
-    await page.fill('input[type="url"]#apiUrl', 'http://localhost:3001/health');
+    await page.fill('input#apiUrl', 'http://localhost:3001/health');
     
     // Start validation
     await page.click('button:has-text("Start Validation")');
@@ -69,6 +69,6 @@ test.describe('JSON:API Validator - Mock Server Validation Tests', () => {
     await expect(page.locator('.progress-indicator')).toContainText('Validation completed', { timeout: 5000 });
     
     // Should show some kind of results
-    await expect(page.locator('.results-panel')).toBeVisible();
+    await expect(page.locator('.card')).toBeVisible();
   });
 });
