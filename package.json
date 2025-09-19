@@ -12,10 +12,10 @@
     "dev:full": "concurrently \"npm run dev\" \"npm run mock-server\"",
     "start": "npm run dev:full",
     "test": "vitest",
-    "test:unit": "vitest run --coverage src/ --reporter=verbose,vitest-ctrf-json-reporter",
+    "test:unit": "vitest run --coverage src/ --reporter=verbose --reporter=vitest-ctrf-json-reporter",
     "test:watch": "vitest watch src/",
     "test:ui": "vitest --ui src/",
-    "test:integration": "vitest run --config vitest.integration.config.js --reporter=verbose,vitest-ctrf-json-reporter",
+    "test:integration": "vitest run --config vitest.integration.config.js --reporter=verbose --reporter=vitest-ctrf-json-reporter",
     "test:e2e": "playwright test --reporter=html,playwright-ctrf-json-reporter",
     "test:e2e-ui": "playwright test --ui"
   },
@@ -31,10 +31,10 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "vitest-ctrf-json-reporter": "^0.0.3"
   },
   "devDependencies": {
-    "playwright-ctrf-json-reporter": "^0.0.23",
     "@playwright/test": "^1.55.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
@@ -49,6 +49,7 @@
     "globals": "^16.4.0",
     "jsdom": "^27.0.0",
     "node-fetch": "^3.3.2",
+    "playwright-ctrf-json-reporter": "^0.0.23",
     "vite": "^7.1.5",
     "vitest": "^3.2.4"
   }
