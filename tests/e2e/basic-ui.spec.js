@@ -47,9 +47,11 @@ test.describe('JSON:API Validator - Basic Functionality', () => {
     // Start validation
     await page.click('button:has-text("Start Validation")');
     
-    // Should show spinner and loading text briefly
-    await expect(page.locator('.spinner')).toBeVisible({ timeout: 2000 });
-    await expect(page.getByText('Executing validation tests...')).toBeVisible({ timeout: 2000 });
-    await expect(page.getByText('Running comprehensive JSON:API validation suite...')).toBeVisible({ timeout: 2000 });
+    // Should show progress indicator and button changes
+    await expect(page.locator('.progress-indicator')).toBeVisible();
+    await expect(page.locator('button:has-text("Validating...")')).toBeVisible();
+    
+    // Wait for validation to complete
+    await expect(page.getByText(/Validation completed/)).toBeVisible({ timeout: 5000 });
   });
 });
