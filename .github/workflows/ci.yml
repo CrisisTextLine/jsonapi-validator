@@ -58,7 +58,13 @@ jobs:
         run: npm ci
 
       - name: Run unit tests
-        run: npm run test:unit || echo "Unit tests not implemented yet"
+        run: npm run test:unit
+
+      - name: Publish Unit Test Results
+        uses: ctrf-io/github-test-reporter@v1
+        if: always()
+        with:
+          results-file: ctrf/ctrf-report.json
 
       - name: Upload test coverage
         uses: actions/upload-artifact@v4
@@ -101,7 +107,13 @@ jobs:
         run: ./test-endpoints.sh
 
       - name: Test validator against mock endpoints
-        run: npm run test:integration || echo "Integration tests not implemented yet"
+        run: npm run test:integration
+
+      - name: Publish Integration Test Results
+        uses: ctrf-io/github-test-reporter@v1
+        if: always()
+        with:
+          results-file: ctrf/ctrf-report.json
 
   e2e-tests:
     name: End-to-End Tests
@@ -163,6 +175,12 @@ jobs:
 
       - name: Run Playwright tests
         run: npm run test:e2e
+
+      - name: Publish E2E Test Results
+        uses: ctrf-io/github-test-reporter@v1
+        if: always()
+        with:
+          results-file: ctrf/ctrf-report.json
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

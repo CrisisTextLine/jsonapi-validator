@@ -12,11 +12,11 @@
     "dev:full": "concurrently \"npm run dev\" \"npm run mock-server\"",
     "start": "npm run dev:full",
     "test": "vitest",
-    "test:unit": "vitest run --coverage src/",
+    "test:unit": "vitest run --coverage src/ --reporter=verbose,vitest-ctrf-json-reporter",
     "test:watch": "vitest watch src/",
     "test:ui": "vitest --ui src/",
-    "test:integration": "vitest run --config vitest.integration.config.js",
-    "test:e2e": "playwright test",
+    "test:integration": "vitest run --config vitest.integration.config.js --reporter=verbose,vitest-ctrf-json-reporter",
+    "test:e2e": "playwright test --reporter=html,playwright-ctrf-json-reporter",
     "test:e2e-ui": "playwright test --ui"
   },
   "keywords": [
@@ -34,6 +34,7 @@
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "playwright-ctrf-json-reporter": "^0.0.23",
     "@playwright/test": "^1.55.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",

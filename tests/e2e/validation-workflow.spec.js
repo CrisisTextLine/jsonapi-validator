@@ -68,7 +68,7 @@ test.describe('JSON:API Validator - Endpoint Validation', () => {
     
     // Should show loading state
     await expect(page.locator('button:has-text("Validating...")')).toBeVisible({ timeout: 2000 });
-    await expect(page.locator('.progress-indicator')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('.progress-indicator')).toContainText('Running JSON:API validation tests', { timeout: 2000 });
     
     // Eventually should complete
     await expect(page.locator('.progress-indicator')).toContainText('Validation completed', { timeout: 5000 });
