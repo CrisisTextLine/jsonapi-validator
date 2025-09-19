@@ -13,8 +13,8 @@
     "start": "npm run dev:full",
     "test": "vitest",
     "test:unit": "vitest run --coverage src/",
-    "test:watch": "vitest watch",
-    "test:ui": "vitest --ui",
+    "test:watch": "vitest watch src/",
+    "test:ui": "vitest --ui src/",
     "test:integration": "vitest run --config vitest.integration.config.js",
     "test:e2e": "playwright test",
     "test:e2e-ui": "playwright test --ui"
