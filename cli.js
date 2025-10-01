@@ -180,7 +180,14 @@ async function main() {
 
     const results = await runValidation(config);
 
-    console.log(formatResults(results, options));
+    const output = formatResults(results, options);
+
+    // For JSON output, write directly to stdout without extra formatting
+    if (options.json) {
+      process.stdout.write(output);
+    } else {
+      console.log(output);
+    }
 
     // Exit with error code if validation failed
     process.exit(results.summary.failed > 0 ? 1 : 0);
