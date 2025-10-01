@@ -304,7 +304,7 @@ function validateClientErrorStatus(
  */
 function validateServerErrorStatus(
   statusCode: number,
-  method: string,
+  _method: string,
   response: JsonApiDocument | null,
   results: HttpStatusValidationResult
 ): void {
