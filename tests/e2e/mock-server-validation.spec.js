@@ -36,11 +36,11 @@ test.describe('JSON:API Validator - Mock Server Validation Tests', () => {
       // Start validation
       await page.click('button:has-text("Start Validation")');
       
-      // Wait for validation to complete
-      await expect(page.locator('.progress-indicator')).toContainText('Validation completed', { timeout: 5000 });
-      
+      // Wait for validation to complete (check the TestRunner progress indicator)
+      await expect(page.locator('.card:has(h2:has-text("Configuration")) .progress-indicator')).toContainText('Validation completed', { timeout: 5000 });
+
       // Check that we got some form of results
-      const progressText = await page.locator('.progress-indicator').textContent();
+      const progressText = await page.locator('.card:has(h2:has-text("Configuration")) .progress-indicator').textContent();
       
       if (endpoint.shouldPass) {
         // Valid endpoints should have some passed tests
@@ -51,7 +51,7 @@ test.describe('JSON:API Validator - Mock Server Validation Tests', () => {
       }
       
       // Ensure results panel shows content
-      await expect(page.locator('.card')).toBeVisible();
+      await expect(page.locator('.card:has(h2:has-text("Results"))')).toBeVisible();
       
       // Should not show the empty state message
       await expect(page.getByText('Configure your API endpoint and click "Start Validation" to begin testing.')).not.toBeVisible();
@@ -66,9 +66,9 @@ test.describe('JSON:API Validator - Mock Server Validation Tests', () => {
     await page.click('button:has-text("Start Validation")');
     
     // Should complete (though might fail validation since it's not a JSON:API endpoint)
-    await expect(page.locator('.progress-indicator')).toContainText('Validation completed', { timeout: 5000 });
+    await expect(page.locator('.card:has(h2:has-text("Configuration")) .progress-indicator')).toContainText('Validation completed', { timeout: 5000 });
     
     // Should show some kind of results
-    await expect(page.locator('.card')).toBeVisible();
+    await expect(page.locator('.card:has(h2:has-text("Results"))')).toBeVisible();
   });
 });

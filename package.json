@@ -16,7 +16,7 @@
     "test:watch": "vitest watch src/",
     "test:ui": "vitest --ui src/",
     "test:integration": "vitest run --config vitest.integration.config.js --reporter=verbose --reporter=vitest-ctrf-json-reporter",
-    "test:e2e": "playwright test --reporter=html,playwright-ctrf-json-reporter",
+    "test:e2e": "playwright test --reporter=list,playwright-ctrf-json-reporter",
     "test:e2e-ui": "playwright test --ui"
   },
   "keywords": [
