@@ -15,9 +15,14 @@ The JSON:API Validator is designed as a standalone client application that can t
 
 ## Features
 
-The JSON:API Validator is a fully functional React-based single-page application that provides comprehensive JSON:API v1.1 specification validation.
+The JSON:API Validator is a comprehensive tool available both as a web application and command-line interface, providing complete JSON:API v1.1 specification validation.
 
 ### Core Capabilities
+
+- **Dual Interface Options**
+  - **Web Application**: React-based SPA with real-time validation UI
+  - **Command-Line Interface**: Scriptable CLI for CI/CD pipelines
+  - Both interfaces use the same powerful validation engine
 
 - **Single-Page Application Interface**
   - Web-based UI for configuring and running JSON:API tests
@@ -25,6 +30,13 @@ The JSON:API Validator is a fully functional React-based single-page application
   - Support for multiple HTTP methods (GET, POST, PUT, PATCH, DELETE)
   - Authentication support (Bearer tokens, API keys, Basic auth)
   - Custom header management for complex API requirements
+
+- **Command-Line Interface (CLI)**
+  - Validate JSON:API endpoints from the terminal
+  - Perfect for CI/CD pipelines and automated testing
+  - Multiple output formats (human-readable, JSON, verbose)
+  - All authentication methods supported
+  - Exit codes for integration with build systems
 
 - **Comprehensive Validation Engine**
   - Document structure validation (data, errors, meta, links, included, jsonapi)
@@ -90,6 +102,117 @@ The JSON:API Validator is a fully functional React-based single-page application
    - Use the included mock server for testing: `http://localhost:3001/api/articles`
    - Try invalid endpoints to test error detection: `http://localhost:3001/api/invalid/no-jsonapi`
 
+### Using the CLI
+
+The JSON:API Validator includes a powerful command-line interface for automated testing and CI/CD integration.
+
+#### Installation
+
+**Local Usage (from project directory):**
+```bash
+node cli.js <url> [options]
+```
+
+**Global Installation:**
+```bash
+npm install -g
+jsonapi-validator <url> [options]
+```
+
+#### Basic Usage
+
+**Validate an endpoint:**
+```bash
+node cli.js https://api.example.com/articles
+```
+
+**Output:**
+```
+🔍 Validating JSON:API endpoint: https://api.example.com/articles
+
+✅ Validation Completed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Passed:   96
+  Failed:   7
+  Warnings: 1
+  Total:    104
+
+Resource Objects
+────────────────
+  ⚠ Media Type Parameters
+     Content-Type contains unknown parameters: charset
+```
+
+#### CLI Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--method <method>` | HTTP method (GET, POST, PATCH, etc.) | `--method POST` |
+| `--auth-type <type>` | Authentication: none, bearer, apiKey, basic | `--auth-type bearer` |
+| `--token <token>` | Bearer token for authentication | `--token abc123` |
+| `--api-key <key>` | API key for authentication | `--api-key xyz789` |
+| `--username <user>` | Username for basic auth | `--username admin` |
+| `--password <pass>` | Password for basic auth | `--password secret` |
+| `--body <json>` | Request body as JSON string | `--body '{"data":{...}}'` |
+| `--json` | Output results as JSON | `--json` |
+| `--verbose` | Show detailed validation output | `--verbose` |
+| `--help` | Show help message | `--help` |
+
+#### Examples
+
+**Bearer Token Authentication:**
+```bash
+node cli.js https://api.example.com/articles \
+  --auth-type bearer \
+  --token YOUR_TOKEN_HERE
+```
+
+**POST Request with Body:**
+```bash
+node cli.js https://api.example.com/articles \
+  --method POST \
+  --body '{"data":{"type":"articles","attributes":{"title":"New Article"}}}'
+```
+
+**JSON Output for CI/CD:**
+```bash
+# Returns JSON and exits with code 1 if validation fails
+node cli.js https://api.example.com/articles --json > results.json
+echo $?  # Check exit code
+```
+
+**Basic Authentication:**
+```bash
+node cli.js https://api.example.com/articles \
+  --auth-type basic \
+  --username myuser \
+  --password mypass
+```
+
+**Verbose Output for Debugging:**
+```bash
+node cli.js https://api.example.com/articles --verbose
+```
+
+#### Exit Codes
+
+The CLI uses standard exit codes for easy integration with scripts:
+- `0`: Validation completed successfully (no failures)
+- `1`: Validation failed or error occurred
+
+**Example CI/CD Integration:**
+```bash
+#!/bin/bash
+# Validate API endpoint in CI/CD pipeline
+
+if node cli.js https://api.example.com/articles --json; then
+  echo "✅ API validation passed"
+else
+  echo "❌ API validation failed"
+  exit 1
+fi
+```
+
 ## Architecture Overview
 
 ## Architecture Overview
@@ -130,9 +253,46 @@ The included mock server (`mock-server/`) provides:
 ### Technology Stack
 
 - **Frontend**: React 19.1.1 with Vite 7.1.5 build system
+- **Build System**: SWC for fast TypeScript/JavaScript compilation
+- **Type Safety**: TypeScript with strict mode enabled
 - **Validation**: Custom JSON:API v1.1 compliance engine
 - **Mock Server**: Express.js with CORS support
 - **Code Quality**: ESLint with React plugins
+- **Testing**: Vitest (unit/integration) + Playwright (E2E)
+
+### TypeScript Support
+
+The project includes comprehensive TypeScript support for type-safe development:
+
+**Features:**
+- ✅ Strict TypeScript configuration
+- ✅ Fast compilation with SWC compiler
+- ✅ Mixed JavaScript/TypeScript codebase support
+- ✅ Comprehensive type definitions for JSON:API structures
+- ✅ IDE autocomplete and inline documentation
+- ✅ Compile-time error detection
+
+**Type Definitions:**
+The project includes detailed TypeScript types in `src/types/validation.ts`:
+- `JsonApiDocument` - Complete JSON:API document structure
+- `JsonApiResource` - Resource object with attributes/relationships
+- `ValidationReport` - Validation results with metadata
+- `TestConfig` - API endpoint configuration
+- And many more...
+
+**Converted Modules:**
+- ✅ Utilities: `ApiClient.ts`, `UrlValidator.ts`
+- ✅ Validators: `HttpStatusValidator.ts`, `RequestValidator.ts`
+- 🚧 Additional validators being converted incrementally
+
+**Type Checking:**
+```bash
+# Check types without emitting files
+npx tsc --noEmit
+
+# Build with type checking
+npm run build
+```
 
 ## JSON:API v1.1 Compliance
 
@@ -178,13 +338,30 @@ This validator aims for complete compliance with the [JSON:API v1.1 specificatio
 ### Available Scripts
 
 ```bash
-npm ci              # Install dependencies (always use ci for consistency)
-npm run lint        # Run ESLint (must pass with 0 warnings)
-npm run build       # Build for production
-npm run dev         # Start development server (http://localhost:3000)
-npm run mock-server # Start mock JSON:API server (http://localhost:3001)
-npm start           # Start both validator and mock server
-npm run preview     # Preview production build
+# Installation
+npm ci                    # Install dependencies (always use ci for consistency)
+
+# Development
+npm run dev               # Start development server (http://localhost:3000)
+npm run mock-server       # Start mock JSON:API server (http://localhost:3001)
+npm start                 # Start both validator and mock server
+
+# Building
+npm run build             # Build for production
+npm run preview           # Preview production build
+
+# Code Quality
+npm run lint              # Run ESLint (must pass with 0 warnings)
+npx tsc --noEmit          # Type check TypeScript
+
+# Testing
+npm test                  # Run unit tests
+npm run test:unit         # Run unit tests with coverage
+npm run test:integration  # Run integration tests
+npm run test:e2e          # Run end-to-end tests
+
+# CLI Tool
+node cli.js <url>         # Validate JSON:API endpoint (see CLI section above)
 ```
 
 ## Contributing
