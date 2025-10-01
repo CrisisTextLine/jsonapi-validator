@@ -64,7 +64,7 @@ jobs:
         uses: ctrf-io/github-test-reporter@v1
         if: always()
         with:
-          results-file: ctrf/ctrf-report.json
+          report-path: vitest-ctrf/report.json
 
       - name: Upload test coverage
         uses: actions/upload-artifact@v4
@@ -113,7 +113,7 @@ jobs:
         uses: ctrf-io/github-test-reporter@v1
         if: always()
         with:
-          results-file: ctrf/ctrf-report.json
+          report-path: vitest-ctrf/report.json
 
   e2e-tests:
     name: End-to-End Tests
@@ -180,7 +180,7 @@ jobs:
         uses: ctrf-io/github-test-reporter@v1
         if: always()
         with:
-          results-file: ctrf/ctrf-report.json
+          report-path: ctrf/ctrf-report.json
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
