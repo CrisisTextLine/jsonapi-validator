@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A single-page application that validates JSON:API v1.1 specification compliance",
   "type": "module",
+  "bin": {
+    "jsonapi-validator": "./cli.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
