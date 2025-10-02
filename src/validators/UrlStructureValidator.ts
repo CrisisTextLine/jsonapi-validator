@@ -1,17 +1,49 @@
 /**
- * UrlStructureValidator.js
- * 
+ * UrlStructureValidator.ts
+ *
  * Validates JSON:API URL structure patterns and conventions.
  * Based on specification: https://jsonapi.org/format/1.1/#url-based-json-api
  */
 
+interface ValidationError {
+  test: string
+  message: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning'
+  message: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
+interface PathAnalysis {
+  isResourceCollection: boolean
+  isIndividualResource: boolean
+  isRelationshipUrl: boolean
+  resourceType: string | null
+  resourceId: string | null
+  relationshipName: string | null
+}
+
 /**
  * Validates JSON:API URL structure and patterns
- * @param {string} url - The URL to validate
- * @returns {Object} Validation result with success/failure and details
+ * @param url - The URL to validate
+ * @returns Validation result with success/failure and details
  */
-export function validateUrlStructure(url) {
-  const results = {
+export function validateUrlStructure(url: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -27,7 +59,7 @@ export function validateUrlStructure(url) {
     return results
   }
 
-  let parsedUrl
+  let parsedUrl: URL
   try {
     parsedUrl = new URL(url)
   } catch {
@@ -66,11 +98,11 @@ export function validateUrlStructure(url) {
 
 /**
  * Validates JSON:API URL path structure
- * @param {string} pathname - URL pathname to validate
- * @returns {Object} Validation result
+ * @param pathname - URL pathname to validate
+ * @returns Validation result
  */
-function validateUrlPath(pathname) {
-  const results = {
+function validateUrlPath(pathname: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -87,7 +119,7 @@ function validateUrlPath(pathname) {
 
   // Remove leading/trailing slashes and split path
   const pathSegments = pathname.replace(/^\/+|\/+$/g, '').split('/').filter(segment => segment.length > 0)
-  
+
   if (pathSegments.length === 0) {
     results.warnings.push({
       test: 'URL Path Structure',
@@ -98,7 +130,7 @@ function validateUrlPath(pathname) {
 
   // Analyze path structure
   const pathAnalysis = analyzePathStructure(pathSegments)
-  
+
   // Validate resource collection patterns
   if (pathAnalysis.isResourceCollection) {
     const collectionValidation = validateResourceCollectionUrl(pathSegments)
@@ -126,11 +158,11 @@ function validateUrlPath(pathname) {
 
 /**
  * Analyzes URL path structure to determine endpoint type
- * @param {Array} pathSegments - Array of path segments
- * @returns {Object} Analysis result
+ * @param pathSegments - Array of path segments
+ * @returns Analysis result
  */
-function analyzePathStructure(pathSegments) {
-  const analysis = {
+function analyzePathStructure(pathSegments: string[]): PathAnalysis {
+  const analysis: PathAnalysis = {
     isResourceCollection: false,
     isIndividualResource: false,
     isRelationshipUrl: false,
@@ -140,26 +172,26 @@ function analyzePathStructure(pathSegments) {
   }
 
   if (pathSegments.length >= 1) {
-    analysis.resourceType = pathSegments[0]
-    
+    analysis.resourceType = pathSegments[0] ?? null
+
     if (pathSegments.length === 1) {
       // /resources - resource collection
       analysis.isResourceCollection = true
     } else if (pathSegments.length === 2) {
       // /resources/123 - individual resource
       analysis.isIndividualResource = true
-      analysis.resourceId = pathSegments[1]
+      analysis.resourceId = pathSegments[1] ?? null
     } else if (pathSegments.length >= 3) {
       // /resources/123/relationships/author - relationship URL
       // /resources/123/author - related resource URL
-      analysis.resourceId = pathSegments[1]
-      
+      analysis.resourceId = pathSegments[1] ?? null
+
       if (pathSegments[2] === 'relationships' && pathSegments.length >= 4) {
         analysis.isRelationshipUrl = true
-        analysis.relationshipName = pathSegments[3]
+        analysis.relationshipName = pathSegments[3] ?? null
       } else {
         // Could be related resource URL
-        analysis.relationshipName = pathSegments[2]
+        analysis.relationshipName = pathSegments[2] ?? null
       }
     }
   }
@@ -169,19 +201,19 @@ function analyzePathStructure(pathSegments) {
 
 /**
  * Validates resource collection URL structure
- * @param {Array} pathSegments - Array of path segments
- * @returns {Object} Validation result
+ * @param pathSegments - Array of path segments
+ * @returns Validation result
  */
-function validateResourceCollectionUrl(pathSegments) {
-  const results = {
+function validateResourceCollectionUrl(pathSegments: string[]): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
     details: []
   }
 
-  const resourceType = pathSegments[0]
-  
+  const resourceType = pathSegments[0] ?? ''
+
   // Validate resource type naming
   if (!isValidResourceType(resourceType)) {
     results.valid = false
@@ -198,7 +230,7 @@ function validateResourceCollectionUrl(pathSegments) {
   }
 
   // Check if resource type appears plural
-  if (!resourceType.endsWith('s') && !isKnownPluralForm(resourceType)) {
+  if (resourceType && !resourceType.endsWith('s') && !isKnownPluralForm(resourceType)) {
     results.warnings.push({
       test: 'Resource Collection URL',
       message: `Resource type "${resourceType}" may not be plural. JSON:API recommends plural resource types for collections.`
@@ -210,20 +242,20 @@ function validateResourceCollectionUrl(pathSegments) {
 
 /**
  * Validates individual resource URL structure
- * @param {Array} pathSegments - Array of path segments
- * @returns {Object} Validation result
+ * @param pathSegments - Array of path segments
+ * @returns Validation result
  */
-function validateIndividualResourceUrl(pathSegments) {
-  const results = {
+function validateIndividualResourceUrl(pathSegments: string[]): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
     details: []
   }
 
-  const resourceType = pathSegments[0]
-  const resourceId = pathSegments[1]
-  
+  const resourceType = pathSegments[0] ?? ''
+  const resourceId = pathSegments[1] ?? ''
+
   // Validate resource type
   if (!isValidResourceType(resourceType)) {
     results.valid = false
@@ -253,21 +285,21 @@ function validateIndividualResourceUrl(pathSegments) {
 
 /**
  * Validates relationship URL structure
- * @param {Array} pathSegments - Array of path segments
- * @returns {Object} Validation result
+ * @param pathSegments - Array of path segments
+ * @returns Validation result
  */
-function validateRelationshipUrl(pathSegments) {
-  const results = {
+function validateRelationshipUrl(pathSegments: string[]): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
     details: []
   }
 
-  const resourceType = pathSegments[0]
-  const resourceId = pathSegments[1]
-  const relationshipKeyword = pathSegments[2]
-  const relationshipName = pathSegments[3]
+  const resourceType = pathSegments[0] ?? ''
+  const resourceId = pathSegments[1] ?? ''
+  const relationshipKeyword = pathSegments[2] ?? ''
+  const relationshipName = pathSegments[3] ?? ''
 
   // Validate resource type and ID
   if (!isValidResourceType(resourceType)) {
@@ -330,11 +362,11 @@ function validateRelationshipUrl(pathSegments) {
 
 /**
  * Validates general path structure requirements
- * @param {Array} pathSegments - Array of path segments
- * @returns {Object} Validation result
+ * @param pathSegments - Array of path segments
+ * @returns Validation result
  */
-function validateGeneralPathStructure(pathSegments) {
-  const results = {
+function validateGeneralPathStructure(pathSegments: string[]): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -380,11 +412,11 @@ function validateGeneralPathStructure(pathSegments) {
 
 /**
  * Validates URL query parameters structure
- * @param {URLSearchParams} searchParams - URL search parameters
- * @returns {Object} Validation result
+ * @param searchParams - URL search parameters
+ * @returns Validation result
  */
-function validateUrlQuery(searchParams) {
-  const results = {
+function validateUrlQuery(searchParams: URLSearchParams): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -392,7 +424,7 @@ function validateUrlQuery(searchParams) {
   }
 
   const params = Array.from(searchParams.keys())
-  
+
   if (params.length === 0) {
     results.details.push({
       test: 'URL Query Parameters',
@@ -405,11 +437,11 @@ function validateUrlQuery(searchParams) {
   // Validate JSON:API reserved parameter names
   const reservedParams = ['include', 'sort']
   const reservedPrefixes = ['fields[', 'page[', 'filter[']
-  
+
   params.forEach(param => {
-    const isReserved = reservedParams.includes(param) || 
+    const isReserved = reservedParams.includes(param) ||
                       reservedPrefixes.some(prefix => param.startsWith(prefix) && param.endsWith(']'))
-    
+
     if (!isReserved && !isValidMemberName(param)) {
       results.valid = false
       results.errors.push({
@@ -430,28 +462,28 @@ function validateUrlQuery(searchParams) {
 
 /**
  * Validates if a string is a valid resource type name
- * @param {string} resourceType - Resource type to validate
- * @returns {boolean} True if valid resource type
+ * @param resourceType - Resource type to validate
+ * @returns True if valid resource type
  */
-function isValidResourceType(resourceType) {
+function isValidResourceType(resourceType: string): boolean {
   if (!resourceType || typeof resourceType !== 'string') {
     return false
   }
-  
+
   // Resource types should follow JSON:API member naming conventions
   return isValidMemberName(resourceType)
 }
 
 /**
  * Validates if a string is a valid resource ID
- * @param {string} resourceId - Resource ID to validate
- * @returns {boolean} True if valid resource ID
+ * @param resourceId - Resource ID to validate
+ * @returns True if valid resource ID
  */
-function isValidResourceId(resourceId) {
+function isValidResourceId(resourceId: string): boolean {
   if (!resourceId || typeof resourceId !== 'string') {
     return false
   }
-  
+
   // Resource IDs can be more flexible than member names
   // Allow alphanumeric, hyphens, underscores, and periods
   return /^[a-zA-Z0-9._-]+$/.test(resourceId)
@@ -459,59 +491,59 @@ function isValidResourceId(resourceId) {
 
 /**
  * Validates if a string is a valid relationship name
- * @param {string} relationshipName - Relationship name to validate
- * @returns {boolean} True if valid relationship name
+ * @param relationshipName - Relationship name to validate
+ * @returns True if valid relationship name
  */
-function isValidRelationshipName(relationshipName) {
+function isValidRelationshipName(relationshipName: string): boolean {
   if (!relationshipName || typeof relationshipName !== 'string') {
     return false
   }
-  
+
   // Relationship names should follow JSON:API member naming conventions
   return isValidMemberName(relationshipName)
 }
 
 /**
  * Validates if a string is a valid JSON:API member name
- * @param {string} name - Member name to validate
- * @returns {boolean} True if valid member name
+ * @param name - Member name to validate
+ * @returns True if valid member name
  */
-function isValidMemberName(name) {
+function isValidMemberName(name: string): boolean {
   if (!name || typeof name !== 'string' || name.length === 0) return false
-  
+
   // JSON:API member names: lowercase letters, numbers, hyphens, underscores
   // Must start and end with letter or number
   const validMemberRegex = /^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$/
   const hasConsecutive = /--+|__+/.test(name)
-  
+
   return validMemberRegex.test(name) && !hasConsecutive
 }
 
 /**
  * Checks if a resource type is a known plural form
- * @param {string} resourceType - Resource type to check
- * @returns {boolean} True if known to be plural
+ * @param resourceType - Resource type to check
+ * @returns True if known to be plural
  */
-function isKnownPluralForm(resourceType) {
+function isKnownPluralForm(resourceType: string): boolean {
   // Common irregular plurals
   const irregularPlurals = [
     'people', 'children', 'mice', 'geese', 'feet', 'teeth',
     'men', 'women', 'sheep', 'deer', 'fish', 'data', 'media'
   ]
-  
+
   return irregularPlurals.includes(resourceType.toLowerCase())
 }
 
 /**
  * Merges validation results
- * @param {Object} target - Target results object
- * @param {Object} source - Source results object
+ * @param target - Target results object
+ * @param source - Source results object
  */
-function mergeResults(target, source) {
+function mergeResults(target: ValidationResult, source: ValidationResult): void {
   if (!source.valid) {
     target.valid = false
   }
-  
+
   target.errors.push(...source.errors)
   target.warnings.push(...source.warnings)
   target.details.push(...source.details)
