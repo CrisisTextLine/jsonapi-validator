@@ -33,12 +33,26 @@ export async function makeRequest(config: TestConfig): Promise<ApiResponse & { s
     }
 
     // Add custom headers
-    if (customHeaders && typeof customHeaders === 'object') {
-      Object.entries(customHeaders).forEach(([key, value]) => {
-        if (key && value) {
-          headers[key] = value
-        }
-      })
+    if (customHeaders) {
+      if (Array.isArray(customHeaders)) {
+        // Handle array format: [{ key: 'name', value: 'value' }]
+        customHeaders.forEach((header) => {
+          if (header && typeof header === 'object' && 'key' in header && 'value' in header) {
+            const key = header.key
+            const value = header.value
+            if (key && value) {
+              headers[key] = value
+            }
+          }
+        })
+      } else if (typeof customHeaders === 'object') {
+        // Handle object format: { 'name': 'value' }
+        Object.entries(customHeaders).forEach(([key, value]) => {
+          if (key && value) {
+            headers[key] = value
+          }
+        })
+      }
     }
 
     // Build request options
