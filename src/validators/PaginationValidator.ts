@@ -1,26 +1,86 @@
 /**
- * PaginationValidator.js
- * 
+ * PaginationValidator.ts
+ *
  * Validates JSON:API v1.1 pagination implementation compliance.
  * Based on specification: https://jsonapi.org/format/1.1/#fetching-pagination
  */
 
+interface ValidationError {
+  test: string
+  message: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning' | 'skipped'
+  message: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
+interface JsonApiLinks {
+  first?: string
+  last?: string
+  prev?: string
+  next?: string
+  self?: string
+  [key: string]: unknown
+}
+
+interface JsonApiMeta {
+  totalResources?: number
+  total?: number
+  totalCount?: number
+  count?: number
+  page?: {
+    number?: number
+    size?: number
+    total?: number
+    totalPages?: number
+    [key: string]: unknown
+  }
+  cursors?: unknown
+  pagination?: unknown
+  [key: string]: unknown
+}
+
+interface JsonApiResponse {
+  data?: unknown[] | unknown | null
+  links?: JsonApiLinks
+  meta?: JsonApiMeta
+  [key: string]: unknown
+}
+
 /**
  * Validates pagination implementation in a JSON:API response
- * @param {Object} response - The API response to validate
- * @param {string} originalUrl - The original request URL
- * @param {Object} requestParams - The original query parameters
- * @returns {Object} Validation result with success/failure and details
+ * @param response - The API response to validate
+ * @param originalUrl - The original request URL
+ * @param requestParams - The original query parameters
+ * @returns Validation result with success/failure and details
  */
-export function validatePagination(response, originalUrl, requestParams = {}) {
-  const results = {
+export function validatePagination(
+  response: unknown,
+  originalUrl: unknown,
+  requestParams: unknown = {}
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
     details: []
   }
 
-  if (!response) {
+  if (!response || typeof response !== 'object') {
     results.details.push({
       test: 'Pagination Validation',
       status: 'skipped',
@@ -29,8 +89,10 @@ export function validatePagination(response, originalUrl, requestParams = {}) {
     return results
   }
 
+  const apiResponse = response as JsonApiResponse
+
   // Check if this is a collection response that could have pagination
-  if (!response.data || !Array.isArray(response.data)) {
+  if (!apiResponse.data || !Array.isArray(apiResponse.data)) {
     results.details.push({
       test: 'Pagination Applicability',
       status: 'skipped',
@@ -39,41 +101,47 @@ export function validatePagination(response, originalUrl, requestParams = {}) {
     return results
   }
 
-  const links = response.links || {}
-  const meta = response.meta || {}
-  
+  const links: JsonApiLinks = apiResponse.links || {}
+  const meta: JsonApiMeta = apiResponse.meta || {}
+
+  // Ensure requestParams is an object
+  const params: Record<string, string> =
+    (typeof requestParams === 'object' && requestParams !== null)
+      ? requestParams as Record<string, string>
+      : {}
+
   // Check for pagination links presence
-  const paginationLinksResult = validatePaginationLinksPresence(links, requestParams)
+  const paginationLinksResult = validatePaginationLinksPresence(links, params)
   mergeValidationResults(results, paginationLinksResult)
 
   // If pagination links are present, validate their structure and correctness
   const paginationLinks = ['first', 'last', 'prev', 'next']
   const presentLinks = paginationLinks.filter(linkName => links[linkName])
-  
+
   if (presentLinks.length > 0) {
     // Validate pagination link URLs
     const linkUrlResult = validatePaginationLinkUrls(links, originalUrl)
     mergeValidationResults(results, linkUrlResult)
 
     // Validate query parameter preservation
-    const queryParamResult = validateQueryParameterPreservation(links, requestParams)
+    const queryParamResult = validateQueryParameterPreservation(links, params)
     mergeValidationResults(results, queryParamResult)
 
     // Validate pagination boundaries
-    const boundaryResult = validatePaginationBoundaries(links, requestParams, response)
+    const boundaryResult = validatePaginationBoundaries(links, params, apiResponse)
     mergeValidationResults(results, boundaryResult)
 
     // Validate pagination consistency
-    const consistencyResult = validatePaginationConsistency(links, meta, response.data, requestParams)
+    const consistencyResult = validatePaginationConsistency(links, meta, apiResponse.data, params)
     mergeValidationResults(results, consistencyResult)
   }
 
   // Validate pagination meta information
-  const metaResult = validatePaginationMeta(meta, response.data, links)
+  const metaResult = validatePaginationMeta(meta, apiResponse.data, links)
   mergeValidationResults(results, metaResult)
 
   // Check for cursor-based pagination
-  const cursorResult = validateCursorPagination(requestParams, links, meta)
+  const cursorResult = validateCursorPagination(params, links, meta)
   mergeValidationResults(results, cursorResult)
 
   return results
@@ -81,12 +149,15 @@ export function validatePagination(response, originalUrl, requestParams = {}) {
 
 /**
  * Validates the presence and basic structure of pagination links
- * @param {Object} links - Links object from response
- * @param {Object} requestParams - Original request parameters
- * @returns {Object} Validation result
+ * @param links - Links object from response
+ * @param requestParams - Original request parameters
+ * @returns Validation result
  */
-function validatePaginationLinksPresence(links, requestParams) {
-  const results = {
+function validatePaginationLinksPresence(
+  links: JsonApiLinks,
+  requestParams: Record<string, string>
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -123,12 +194,15 @@ function validatePaginationLinksPresence(links, requestParams) {
 
 /**
  * Validates that pagination link URLs are properly formed
- * @param {Object} links - Links object from response
- * @param {string} originalUrl - The original request URL
- * @returns {Object} Validation result
+ * @param links - Links object from response
+ * @param originalUrl - The original request URL
+ * @returns Validation result
  */
-function validatePaginationLinkUrls(links, originalUrl) {
-  const results = {
+function validatePaginationLinkUrls(
+  links: JsonApiLinks,
+  originalUrl: unknown
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -136,12 +210,21 @@ function validatePaginationLinkUrls(links, originalUrl) {
   }
 
   const paginationLinks = ['first', 'last', 'prev', 'next', 'self']
-  
+
   for (const linkName of paginationLinks) {
     if (!links[linkName]) continue
 
     const linkUrl = links[linkName]
-    
+
+    if (typeof linkUrl !== 'string') {
+      results.valid = false
+      results.errors.push({
+        test: 'Pagination Link URL Format',
+        message: `${linkName} link must be a string`
+      })
+      continue
+    }
+
     // Validate URL format
     try {
       new URL(linkUrl)
@@ -160,14 +243,14 @@ function validatePaginationLinkUrls(links, originalUrl) {
     }
 
     // Validate that pagination links use the same base URL as the original request
-    if (originalUrl) {
+    if (originalUrl && typeof originalUrl === 'string') {
       try {
         const originalUrlObj = new URL(originalUrl)
         const linkUrlObj = new URL(linkUrl)
-        
+
         const originalBase = `${originalUrlObj.protocol}//${originalUrlObj.host}${originalUrlObj.pathname}`
         const linkBase = `${linkUrlObj.protocol}//${linkUrlObj.host}${linkUrlObj.pathname}`
-        
+
         if (originalBase !== linkBase) {
           results.warnings.push({
             test: 'Pagination Link Base URL',
@@ -185,12 +268,15 @@ function validatePaginationLinkUrls(links, originalUrl) {
 
 /**
  * Validates that original query parameters are preserved in pagination links
- * @param {Object} links - Links object from response
- * @param {Object} requestParams - Original request parameters
- * @returns {Object} Validation result
+ * @param links - Links object from response
+ * @param requestParams - Original request parameters
+ * @returns Validation result
  */
-function validateQueryParameterPreservation(links, requestParams) {
-  const results = {
+function validateQueryParameterPreservation(
+  links: JsonApiLinks,
+  requestParams: Record<string, string>
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -198,10 +284,10 @@ function validateQueryParameterPreservation(links, requestParams) {
   }
 
   const paginationLinks = ['first', 'last', 'prev', 'next']
-  
+
   // Get non-page parameters from original request
   const nonPageParams = Object.keys(requestParams).filter(key => !key.startsWith('page['))
-  
+
   if (nonPageParams.length === 0) {
     results.details.push({
       test: 'Query Parameter Preservation',
@@ -214,22 +300,30 @@ function validateQueryParameterPreservation(links, requestParams) {
   for (const linkName of paginationLinks) {
     if (!links[linkName]) continue
 
+    const linkUrl = links[linkName]
+    if (typeof linkUrl !== 'string') continue
+
     try {
-      const linkUrl = new URL(links[linkName])
-      const linkParams = Object.fromEntries(linkUrl.searchParams.entries())
+      const linkUrlObj = new URL(linkUrl)
+      const linkParams: Record<string, string> = {}
+      linkUrlObj.searchParams.forEach((value, key) => {
+        linkParams[key] = value
+      })
 
       // Check that all non-page parameters are preserved
-      const missingParams = []
-      const modifiedParams = []
-      
+      const missingParams: string[] = []
+      const modifiedParams: Array<{name: string, original: string, inLink: string}> = []
+
       for (const paramName of nonPageParams) {
         if (!(paramName in linkParams)) {
           missingParams.push(paramName)
         } else if (linkParams[paramName] !== requestParams[paramName]) {
+          const originalValue = requestParams[paramName] ?? ''
+          const linkValue = linkParams[paramName] ?? ''
           modifiedParams.push({
             name: paramName,
-            original: requestParams[paramName],
-            inLink: linkParams[paramName]
+            original: originalValue,
+            inLink: linkValue
           })
         }
       }
@@ -267,23 +361,27 @@ function validateQueryParameterPreservation(links, requestParams) {
 
 /**
  * Validates pagination boundaries (first/last page behavior)
- * @param {Object} links - Links object from response
- * @param {Object} requestParams - Original request parameters
- * @param {Object} response - Full response object
- * @returns {Object} Validation result
+ * @param links - Links object from response
+ * @param requestParams - Original request parameters
+ * @param response - Full response object
+ * @returns Validation result
  */
-function validatePaginationBoundaries(links, requestParams, response) {
-  const results = {
+function validatePaginationBoundaries(
+  links: JsonApiLinks,
+  requestParams: Record<string, string>,
+  response: JsonApiResponse
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
     details: []
   }
 
-  const pageNumber = parseInt(requestParams['page[number]']) || 1
-  const pageSize = parseInt(requestParams['page[size]']) || 10
-  const dataLength = response.data?.length || 0
-  
+  const pageNumber = parseInt(requestParams['page[number]'] ?? '1') || 1
+  const pageSize = parseInt(requestParams['page[size]'] ?? '10') || 10
+  const dataLength = Array.isArray(response.data) ? response.data.length : 0
+
   // Check first page boundaries
   if (pageNumber === 1) {
     if (links.prev) {
@@ -317,7 +415,7 @@ function validatePaginationBoundaries(links, requestParams, response) {
   }
 
   // Validate that first and last links are always present when pagination is used
-  const hasPaginationLinks = ['prev', 'next'].some(link => links[link])
+  const hasPaginationLinks = ['prev', 'next'].some(link => links[link as keyof JsonApiLinks])
   if (hasPaginationLinks) {
     if (!links.first) {
       results.warnings.push({
@@ -327,11 +425,11 @@ function validatePaginationBoundaries(links, requestParams, response) {
     }
     if (!links.last) {
       results.warnings.push({
-        test: 'Pagination Boundaries', 
+        test: 'Pagination Boundaries',
         message: 'Pagination links present but missing "last" link'
       })
     }
-    
+
     if (links.first && links.last) {
       results.details.push({
         test: 'Pagination Boundaries',
@@ -346,23 +444,28 @@ function validatePaginationBoundaries(links, requestParams, response) {
 
 /**
  * Validates pagination consistency across links, meta, and data
- * @param {Object} links - Links object from response
- * @param {Object} meta - Meta object from response
- * @param {Array} data - Data array from response
- * @param {Object} requestParams - Original request parameters
- * @returns {Object} Validation result
+ * @param links - Links object from response
+ * @param meta - Meta object from response
+ * @param data - Data array from response
+ * @param requestParams - Original request parameters
+ * @returns Validation result
  */
-function validatePaginationConsistency(links, meta, data, requestParams) {
-  const results = {
+function validatePaginationConsistency(
+  links: JsonApiLinks,
+  meta: JsonApiMeta,
+  data: unknown[],
+  requestParams: Record<string, string>
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
     details: []
   }
 
-  const pageSize = parseInt(requestParams['page[size]']) || 10
-  const pageNumber = parseInt(requestParams['page[number]']) || 1
-  
+  const pageSize = parseInt(requestParams['page[size]'] ?? '10') || 10
+  const pageNumber = parseInt(requestParams['page[number]'] ?? '1') || 1
+
   // Validate data size consistency
   if (data.length > pageSize) {
     results.valid = false
@@ -387,7 +490,7 @@ function validatePaginationConsistency(links, meta, data, requestParams) {
         message: `Meta page number ${meta.page.number} does not match requested page number ${pageNumber}`
       })
     }
-    
+
     if (meta.page.size && meta.page.size !== pageSize) {
       results.valid = false
       results.errors.push({
@@ -406,14 +509,17 @@ function validatePaginationConsistency(links, meta, data, requestParams) {
   }
 
   // Validate link consistency with current page
-  if (links.self) {
+  if (links.self && typeof links.self === 'string') {
     try {
       const selfUrl = new URL(links.self)
-      const selfParams = Object.fromEntries(selfUrl.searchParams.entries())
-      
-      const selfPageNumber = parseInt(selfParams['page[number]']) || 1
-      const selfPageSize = parseInt(selfParams['page[size]']) || 10
-      
+      const selfParams: Record<string, string> = {}
+      selfUrl.searchParams.forEach((value, key) => {
+        selfParams[key] = value
+      })
+
+      const selfPageNumber = parseInt(selfParams['page[number]'] ?? '1') || 1
+      const selfPageSize = parseInt(selfParams['page[size]'] ?? '10') || 10
+
       if (selfPageNumber !== pageNumber || selfPageSize !== pageSize) {
         results.warnings.push({
           test: 'Pagination Consistency',
@@ -430,13 +536,17 @@ function validatePaginationConsistency(links, meta, data, requestParams) {
 
 /**
  * Validates pagination-related meta information
- * @param {Object} meta - Meta object from response
- * @param {Array} data - Data array from response
- * @param {Object} links - Links object from response
- * @returns {Object} Validation result
+ * @param meta - Meta object from response
+ * @param data - Data array from response
+ * @param links - Links object from response
+ * @returns Validation result
  */
-function validatePaginationMeta(meta, data, links) {
-  const results = {
+function validatePaginationMeta(
+  meta: JsonApiMeta,
+  _data: unknown[],
+  links: JsonApiLinks
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -444,7 +554,7 @@ function validatePaginationMeta(meta, data, links) {
   }
 
   const hasPaginationLinks = ['first', 'last', 'prev', 'next'].some(link => links[link])
-  
+
   if (!hasPaginationLinks) {
     results.details.push({
       test: 'Pagination Meta',
@@ -457,7 +567,7 @@ function validatePaginationMeta(meta, data, links) {
   // Check for common pagination meta fields
   const commonMetaFields = ['totalResources', 'total', 'totalCount', 'count']
   const totalField = commonMetaFields.find(field => meta[field] !== undefined)
-  
+
   if (totalField) {
     const totalValue = meta[totalField]
     if (typeof totalValue === 'number' && totalValue >= 0) {
@@ -482,8 +592,10 @@ function validatePaginationMeta(meta, data, links) {
   // Check for page-specific meta information
   if (meta.page) {
     const pageMetaFields = ['number', 'size', 'total', 'totalPages']
-    const presentPageFields = pageMetaFields.filter(field => meta.page[field] !== undefined)
-    
+    const presentPageFields = pageMetaFields.filter(field =>
+      meta.page && meta.page[field] !== undefined
+    )
+
     if (presentPageFields.length > 0) {
       results.details.push({
         test: 'Pagination Meta',
@@ -515,13 +627,17 @@ function validatePaginationMeta(meta, data, links) {
 
 /**
  * Validates cursor-based pagination if present
- * @param {Object} requestParams - Original request parameters
- * @param {Object} links - Links object from response
- * @param {Object} meta - Meta object from response
- * @returns {Object} Validation result
+ * @param requestParams - Original request parameters
+ * @param links - Links object from response
+ * @param meta - Meta object from response
+ * @returns Validation result
  */
-function validateCursorPagination(requestParams, links, meta) {
-  const results = {
+function validateCursorPagination(
+  requestParams: Record<string, string>,
+  links: JsonApiLinks,
+  meta: JsonApiMeta
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -529,7 +645,7 @@ function validateCursorPagination(requestParams, links, meta) {
   }
 
   // Check for cursor-based pagination parameters
-  const cursorParams = Object.keys(requestParams).filter(key => 
+  const cursorParams = Object.keys(requestParams).filter(key =>
     key.startsWith('page[') && (key.includes('cursor') || key.includes('before') || key.includes('after'))
   )
 
@@ -553,11 +669,17 @@ function validateCursorPagination(requestParams, links, meta) {
   for (const linkName of paginationLinks) {
     if (!links[linkName]) continue
 
+    const linkUrl = links[linkName]
+    if (typeof linkUrl !== 'string') continue
+
     try {
-      const linkUrl = new URL(links[linkName])
-      const linkParams = Object.fromEntries(linkUrl.searchParams.entries())
-      
-      const linkCursorParams = Object.keys(linkParams).filter(key => 
+      const linkUrlObj = new URL(linkUrl)
+      const linkParams: string[] = []
+      linkUrlObj.searchParams.forEach((_, key) => {
+        linkParams.push(key)
+      })
+
+      const linkCursorParams = linkParams.filter(key =>
         key.startsWith('page[') && (key.includes('cursor') || key.includes('before') || key.includes('after'))
       )
 
@@ -592,14 +714,14 @@ function validateCursorPagination(requestParams, links, meta) {
 
 /**
  * Helper function to merge validation results
- * @param {Object} target - Target results object to merge into
- * @param {Object} source - Source results object to merge from
+ * @param target - Target results object to merge into
+ * @param source - Source results object to merge from
  */
-function mergeValidationResults(target, source) {
+function mergeValidationResults(target: ValidationResult, source: ValidationResult): void {
   if (!source.valid) {
     target.valid = false
   }
-  
+
   target.errors.push(...source.errors)
   target.warnings.push(...source.warnings)
   target.details.push(...source.details)
