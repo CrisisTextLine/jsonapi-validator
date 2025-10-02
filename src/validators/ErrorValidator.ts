@@ -1,6 +1,6 @@
 /**
- * ErrorValidator.js
- * 
+ * ErrorValidator.ts
+ *
  * Validates JSON:API v1.1 error object structure compliance.
  * Based on specification: https://jsonapi.org/format/1.1/#errors
  */
@@ -8,13 +8,39 @@
 import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
 import { validateMemberName } from './ResourceValidator.js'
 
+interface ValidationError {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning'
+  message: string
+  context?: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
 /**
  * Validates the errors member structure
- * @param {any} errors - The errors value to validate
- * @returns {Object} Validation result with success/failure and details
+ * @param errors - The errors value to validate
+ * @returns Validation result with success/failure and details
  */
-export function validateErrorsMember(errors) {
-  const results = {
+export function validateErrorsMember(errors: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -49,7 +75,7 @@ export function validateErrorsMember(errors) {
 
   // Step 3: Validate each error object in the array
   let allErrorsValid = true
-  errors.forEach((errorObj, index) => {
+  errors.forEach((errorObj: unknown, index: number) => {
     const errorValidation = validateErrorObject(errorObj, `errors[${index}]`)
     results.details.push(...errorValidation.details)
     if (!errorValidation.valid) {
@@ -70,12 +96,12 @@ export function validateErrorsMember(errors) {
 
 /**
  * Validates a single error object for JSON:API compliance
- * @param {any} errorObj - The error object to validate
- * @param {string} context - Context for error messages (e.g., "errors[0]")
- * @returns {Object} Validation result with success/failure and details
+ * @param errorObj - The error object to validate
+ * @param context - Context for error messages (e.g., "errors[0]")
+ * @returns Validation result with success/failure and details
  */
-export function validateErrorObject(errorObj, context = 'error') {
-  const results = {
+export function validateErrorObject(errorObj: unknown, context: string = 'error'): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -96,12 +122,14 @@ export function validateErrorObject(errorObj, context = 'error') {
   if (typeof errorObj !== 'object' || Array.isArray(errorObj)) {
     results.valid = false
     results.errors.push({
-      test: 'Error Object Structure', 
+      test: 'Error Object Structure',
       context,
       message: 'Error object must be an object'
     })
     return results
   }
+
+  const errorObject = errorObj as Record<string, unknown>
 
   results.details.push({
     test: 'Error Object Structure',
@@ -112,7 +140,7 @@ export function validateErrorObject(errorObj, context = 'error') {
 
   // Step 2: Validate allowed members only
   const allowedMembers = ['id', 'links', 'status', 'code', 'title', 'detail', 'source', 'meta']
-  const presentMembers = Object.keys(errorObj)
+  const presentMembers = Object.keys(errorObject)
   const additionalMembers = presentMembers.filter(member => !allowedMembers.includes(member))
 
   if (additionalMembers.length > 0) {
@@ -132,10 +160,10 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Step 3: Validate optional members when present
-  
+
   // Validate 'id' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'id')) {
-    const idValidation = validateErrorIdMember(errorObj.id, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'id')) {
+    const idValidation = validateErrorIdMember(errorObject.id, context)
     results.details.push(...idValidation.details)
     if (!idValidation.valid) {
       results.valid = false
@@ -144,8 +172,8 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Validate 'links' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'links')) {
-    const linksValidation = validateErrorLinksMember(errorObj.links, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'links')) {
+    const linksValidation = validateErrorLinksMember(errorObject.links, context)
     results.details.push(...linksValidation.details)
     if (!linksValidation.valid) {
       results.valid = false
@@ -154,8 +182,8 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Validate 'status' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'status')) {
-    const statusValidation = validateErrorStatusMember(errorObj.status, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'status')) {
+    const statusValidation = validateErrorStatusMember(errorObject.status, context)
     results.details.push(...statusValidation.details)
     if (!statusValidation.valid) {
       results.valid = false
@@ -164,8 +192,8 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Validate 'code' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'code')) {
-    const codeValidation = validateErrorCodeMember(errorObj.code, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'code')) {
+    const codeValidation = validateErrorCodeMember(errorObject.code, context)
     results.details.push(...codeValidation.details)
     if (!codeValidation.valid) {
       results.valid = false
@@ -174,8 +202,8 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Validate 'title' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'title')) {
-    const titleValidation = validateErrorTitleMember(errorObj.title, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'title')) {
+    const titleValidation = validateErrorTitleMember(errorObject.title, context)
     results.details.push(...titleValidation.details)
     if (!titleValidation.valid) {
       results.valid = false
@@ -184,8 +212,8 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Validate 'detail' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'detail')) {
-    const detailValidation = validateErrorDetailMember(errorObj.detail, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'detail')) {
+    const detailValidation = validateErrorDetailMember(errorObject.detail, context)
     results.details.push(...detailValidation.details)
     if (!detailValidation.valid) {
       results.valid = false
@@ -194,8 +222,8 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Validate 'source' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'source')) {
-    const sourceValidation = validateErrorSourceMember(errorObj.source, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'source')) {
+    const sourceValidation = validateErrorSourceMember(errorObject.source, context)
     results.details.push(...sourceValidation.details)
     if (!sourceValidation.valid) {
       results.valid = false
@@ -204,8 +232,8 @@ export function validateErrorObject(errorObj, context = 'error') {
   }
 
   // Validate 'meta' member
-  if (Object.prototype.hasOwnProperty.call(errorObj, 'meta')) {
-    const metaValidation = validateErrorMetaMember(errorObj.meta, context)
+  if (Object.prototype.hasOwnProperty.call(errorObject, 'meta')) {
+    const metaValidation = validateErrorMetaMember(errorObject.meta, context)
     results.details.push(...metaValidation.details)
     if (!metaValidation.valid) {
       results.valid = false
@@ -218,14 +246,15 @@ export function validateErrorObject(errorObj, context = 'error') {
 
 /**
  * Validates the 'id' member of an error object
- * @param {any} id - The id value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param id - The id value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorIdMember(id, context) {
-  const results = {
+function validateErrorIdMember(id: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -257,14 +286,15 @@ function validateErrorIdMember(id, context) {
 
 /**
  * Validates the 'links' member of an error object
- * @param {any} links - The links value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param links - The links value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorLinksMember(links, context) {
-  const results = {
+function validateErrorLinksMember(links: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -278,9 +308,11 @@ function validateErrorLinksMember(links, context) {
     return results
   }
 
+  const linksObject = links as Record<string, unknown>
+
   // Validate 'about' link (most common for errors)
-  if (Object.prototype.hasOwnProperty.call(links, 'about')) {
-    const aboutValidation = validateErrorLinkValue(links.about, `${context}.links.about`)
+  if (Object.prototype.hasOwnProperty.call(linksObject, 'about')) {
+    const aboutValidation = validateErrorLinkValue(linksObject.about, `${context}.links.about`)
     results.details.push(...aboutValidation.details)
     if (!aboutValidation.valid) {
       results.valid = false
@@ -289,10 +321,10 @@ function validateErrorLinksMember(links, context) {
   }
 
   // Allow other link types but validate their structure
-  const linkKeys = Object.keys(links)
+  const linkKeys = Object.keys(linksObject)
   for (const linkName of linkKeys) {
     if (linkName !== 'about') {
-      const linkValidation = validateErrorLinkValue(links[linkName], `${context}.links.${linkName}`)
+      const linkValidation = validateErrorLinkValue(linksObject[linkName], `${context}.links.${linkName}`)
       results.details.push(...linkValidation.details)
       if (!linkValidation.valid) {
         results.valid = false
@@ -315,14 +347,15 @@ function validateErrorLinksMember(links, context) {
 
 /**
  * Validates a single link value in an error object
- * @param {any} link - The link value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param link - The link value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorLinkValue(link, context) {
-  const results = {
+function validateErrorLinkValue(link: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -354,25 +387,27 @@ function validateErrorLinkValue(link, context) {
       }
     }
   } else if (typeof link === 'object' && link !== null && !Array.isArray(link)) {
+    const linkObject = link as Record<string, unknown>
+
     // Link object must have href member
-    if (!Object.prototype.hasOwnProperty.call(link, 'href')) {
+    if (!Object.prototype.hasOwnProperty.call(linkObject, 'href')) {
       results.valid = false
       results.errors.push({
         test: 'Error Link Object Structure',
         context,
         message: 'Error link object must have an "href" member'
       })
-    } else if (typeof link.href !== 'string' || link.href.length === 0) {
+    } else if (typeof linkObject.href !== 'string' || linkObject.href.length === 0) {
       results.valid = false
       results.errors.push({
-        test: 'Error Link Object Structure', 
+        test: 'Error Link Object Structure',
         context,
         message: 'Error link object "href" must be a non-empty string'
       })
     } else {
       // Validate href URL format
-      if (!isValidUrl(link.href)) {
-        const urlError = getUrlValidationError(link.href)
+      if (!isValidUrl(linkObject.href)) {
+        const urlError = getUrlValidationError(linkObject.href)
         results.valid = false
         results.errors.push({
           test: 'Error Link Object URL Format',
@@ -390,8 +425,8 @@ function validateErrorLinkValue(link, context) {
     }
 
     // Validate optional meta member
-    if (Object.prototype.hasOwnProperty.call(link, 'meta')) {
-      if (typeof link.meta !== 'object' || link.meta === null || Array.isArray(link.meta)) {
+    if (Object.prototype.hasOwnProperty.call(linkObject, 'meta')) {
+      if (typeof linkObject.meta !== 'object' || linkObject.meta === null || Array.isArray(linkObject.meta)) {
         results.valid = false
         results.errors.push({
           test: 'Error Link Object Meta',
@@ -400,16 +435,16 @@ function validateErrorLinkValue(link, context) {
         })
       } else {
         // Validate meta member names follow JSON:API naming conventions
-        const metaKeys = Object.keys(link.meta)
+        const metaKeys = Object.keys(linkObject.meta as Record<string, unknown>)
         for (const metaName of metaKeys) {
-          const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
+          const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`) as any
           results.details.push(...nameValidation.details)
           if (!nameValidation.valid) {
             results.valid = false
             results.errors.push(...nameValidation.errors)
           }
         }
-        
+
         results.details.push({
           test: 'Error Link Object Meta',
           status: 'passed',
@@ -420,10 +455,10 @@ function validateErrorLinkValue(link, context) {
     }
 
     // Check for additional members beyond href and meta
-    const linkKeys = Object.keys(link)
+    const linkKeys = Object.keys(linkObject)
     const allowedMembers = ['href', 'meta']
     const additionalMembers = linkKeys.filter(key => !allowedMembers.includes(key))
-    
+
     if (additionalMembers.length > 0) {
       results.valid = false
       results.errors.push({
@@ -446,14 +481,15 @@ function validateErrorLinkValue(link, context) {
 
 /**
  * Validates the 'status' member of an error object
- * @param {any} status - The status value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param status - The status value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorStatusMember(status, context) {
-  const results = {
+function validateErrorStatusMember(status: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -492,14 +528,15 @@ function validateErrorStatusMember(status, context) {
 
 /**
  * Validates the 'code' member of an error object
- * @param {any} code - The code value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param code - The code value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorCodeMember(code, context) {
-  const results = {
+function validateErrorCodeMember(code: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -531,14 +568,15 @@ function validateErrorCodeMember(code, context) {
 
 /**
  * Validates the 'title' member of an error object
- * @param {any} title - The title value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param title - The title value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorTitleMember(title, context) {
-  const results = {
+function validateErrorTitleMember(title: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -570,14 +608,15 @@ function validateErrorTitleMember(title, context) {
 
 /**
  * Validates the 'detail' member of an error object
- * @param {any} detail - The detail value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param detail - The detail value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorDetailMember(detail, context) {
-  const results = {
+function validateErrorDetailMember(detail: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -609,14 +648,15 @@ function validateErrorDetailMember(detail, context) {
 
 /**
  * Validates the 'source' member of an error object
- * @param {any} source - The source value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param source - The source value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorSourceMember(source, context) {
-  const results = {
+function validateErrorSourceMember(source: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -630,7 +670,8 @@ function validateErrorSourceMember(source, context) {
     return results
   }
 
-  const sourceKeys = Object.keys(source)
+  const sourceObject = source as Record<string, unknown>
+  const sourceKeys = Object.keys(sourceObject)
   const allowedMembers = ['pointer', 'parameter']
   const additionalMembers = sourceKeys.filter(key => !allowedMembers.includes(key))
 
@@ -644,8 +685,8 @@ function validateErrorSourceMember(source, context) {
   }
 
   // Validate that at least one of pointer or parameter is present
-  const hasPointer = Object.prototype.hasOwnProperty.call(source, 'pointer')
-  const hasParameter = Object.prototype.hasOwnProperty.call(source, 'parameter')
+  const hasPointer = Object.prototype.hasOwnProperty.call(sourceObject, 'pointer')
+  const hasParameter = Object.prototype.hasOwnProperty.call(sourceObject, 'parameter')
 
   if (!hasPointer && !hasParameter) {
     results.valid = false
@@ -658,7 +699,7 @@ function validateErrorSourceMember(source, context) {
 
   // Validate 'pointer' member if present
   if (hasPointer) {
-    const pointerValidation = validateJsonPointer(source.pointer, `${context}.source.pointer`)
+    const pointerValidation = validateJsonPointer(sourceObject.pointer, `${context}.source.pointer`)
     results.details.push(...pointerValidation.details)
     if (!pointerValidation.valid) {
       results.valid = false
@@ -668,7 +709,7 @@ function validateErrorSourceMember(source, context) {
 
   // Validate 'parameter' member if present
   if (hasParameter) {
-    const parameterValidation = validateErrorSourceParameter(source.parameter, `${context}.source.parameter`)
+    const parameterValidation = validateErrorSourceParameter(sourceObject.parameter, `${context}.source.parameter`)
     results.details.push(...parameterValidation.details)
     if (!parameterValidation.valid) {
       results.valid = false
@@ -677,10 +718,10 @@ function validateErrorSourceMember(source, context) {
   }
 
   if (results.valid && additionalMembers.length === 0) {
-    const membersList = []
+    const membersList: string[] = []
     if (hasPointer) membersList.push('pointer')
     if (hasParameter) membersList.push('parameter')
-    
+
     results.details.push({
       test: 'Error Source Member',
       status: 'passed',
@@ -694,14 +735,15 @@ function validateErrorSourceMember(source, context) {
 
 /**
  * Validates a JSON Pointer according to RFC 6901
- * @param {any} pointer - The pointer value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param pointer - The pointer value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateJsonPointer(pointer, context) {
-  const results = {
+function validateJsonPointer(pointer: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -751,14 +793,15 @@ function validateJsonPointer(pointer, context) {
 
 /**
  * Validates the 'parameter' member of an error source object
- * @param {any} parameter - The parameter value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param parameter - The parameter value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorSourceParameter(parameter, context) {
-  const results = {
+function validateErrorSourceParameter(parameter: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -790,14 +833,15 @@ function validateErrorSourceParameter(parameter, context) {
 
 /**
  * Validates the 'meta' member of an error object
- * @param {any} meta - The meta value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param meta - The meta value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateErrorMetaMember(meta, context) {
-  const results = {
+function validateErrorMetaMember(meta: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -809,18 +853,19 @@ function validateErrorMetaMember(meta, context) {
       message: 'Error meta must be an object'
     })
   } else {
-    const metaKeys = Object.keys(meta)
-    
+    const metaObject = meta as Record<string, unknown>
+    const metaKeys = Object.keys(metaObject)
+
     // Validate each meta member name follows JSON:API naming conventions
     for (const metaName of metaKeys) {
-      const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
+      const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`) as any
       results.details.push(...nameValidation.details)
       if (!nameValidation.valid) {
         results.valid = false
         results.errors.push(...nameValidation.errors)
       }
     }
-    
+
     results.details.push({
       test: 'Error Meta Member',
       status: 'passed',
