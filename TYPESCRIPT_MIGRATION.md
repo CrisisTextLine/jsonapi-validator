@@ -5,11 +5,11 @@ This document tracks the progress of migrating the JSON:API Validator codebase t
 
 ## Current Status
 
-**Overall Progress: 28% Complete**
+**Overall Progress: 32% Complete**
 - **Total Files**: ~25 files
-- **Converted**: 7 files (28%)
-- **Remaining**: 18 files (72%)
-- **Lines Converted**: ~2,335 / ~8,000 LOC
+- **Converted**: 8 files (32%)
+- **Remaining**: 17 files (68%)
+- **Lines Converted**: ~2,690 / ~8,000 LOC
 
 ## Active Tasks & Todos
 
@@ -47,13 +47,13 @@ This document tracks the progress of migrating the JSON:API Validator codebase t
 - [ ] `src/utils/ValidationService.js` (large, complex)
 - [ ] `src/utils/ValidationReporter.js` (large, complex)
 
-### Validators (4/11 - 36%)
+### Validators (5/11 - 45%)
 - [x] `src/validators/HttpStatusValidator.ts` (347 lines) + 55 unit tests
 - [x] `src/validators/RequestValidator.ts` (272 lines) + 38 unit tests
 - [x] `src/validators/ContentNegotiationValidator.ts` (419 lines) + 56 unit tests
 - [x] `src/validators/DocumentValidator.ts` (1,167 lines)
+- [x] `src/validators/QueryValidator.ts` (355 lines)
 - [ ] `src/validators/JsonApiObjectValidator.js` (378 lines)
-- [ ] `src/validators/QueryValidator.js` (355 lines)
 - [ ] `src/validators/UrlStructureValidator.js` (517 lines)
 - [ ] `src/validators/PaginationValidator.js` (605 lines)
 - [ ] `src/validators/ErrorValidator.js` (832 lines)
@@ -102,7 +102,7 @@ This document tracks the progress of migrating the JSON:API Validator codebase t
 ✅ Mixed JS/TS codebase working seamlessly
 ✅ No breaking changes to existing functionality
 ✅ Comprehensive test coverage for converted modules
-✅ ~2,335 lines of type-safe code
+✅ ~2,690 lines of type-safe code
 
 ## Next Priority Conversions
 
@@ -113,7 +113,7 @@ This document tracks the progress of migrating the JSON:API Validator codebase t
 
 ### Medium Priority (Supporting Validators)
 4. `QueryParameterValidator.js` - Query parameter validation (892 lines)
-5. `QueryValidator.js` - Query validation (355 lines)
+5. ~~`QueryValidator.js`~~ ✅ DONE - Query validation (355 lines)
 6. `UrlStructureValidator.js` - URL structure validation (517 lines)
 7. `PaginationValidator.js` - Pagination validation (605 lines)
 8. `JsonApiObjectValidator.js` - JSON:API object validation (378 lines)
@@ -208,7 +208,7 @@ All conversions must:
 ## Completion Criteria
 
 The TypeScript migration will be considered complete when:
-- [ ] All validators converted to TypeScript (4/11 done - 36%)
+- [ ] All validators converted to TypeScript (5/11 done - 45%)
 - [ ] All utilities converted to TypeScript (2/4 done - 50%)
 - [ ] ValidationService and ValidationReporter converted
 - [ ] All type errors resolved (currently: 0 errors ✅)

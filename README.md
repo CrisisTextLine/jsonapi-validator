@@ -230,7 +230,7 @@ src/
 │   ├── DocumentValidator.js      # Document structure validation
 │   ├── ResourceValidator.js      # Resource object validation
 │   ├── ErrorValidator.js         # Error response validation
-│   ├── QueryValidator.js         # Query parameter validation
+│   ├── QueryValidator.ts         # Query parameter validation
 │   ├── PaginationValidator.js    # Pagination validation
 │   └── [8 more validators...]    # Comprehensive validation suite
 ├── utils/                        # Core utilities

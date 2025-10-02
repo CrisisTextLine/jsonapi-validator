@@ -6,7 +6,7 @@
 
 import { makeRequest } from '../utils/ApiClient.js'
 import { validateDocument } from '../validators/DocumentValidator.js'
-import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.js'
+import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.ts'
 import { validateQueryParameters } from '../validators/QueryParameterValidator.ts'
 import { validatePagination } from '../validators/PaginationValidator.js'
 import { validateHttpStatus } from '../validators/HttpStatusValidator.js'

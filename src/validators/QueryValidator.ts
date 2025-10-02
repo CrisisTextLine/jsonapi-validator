@@ -1,18 +1,54 @@
 /**
- * QueryValidator.js
- * 
+ * QueryValidator.ts
+ *
  * Validates JSON:API query parameters including sparse fieldsets, includes, sorting, and pagination
  */
 
+import type { JsonApiDocument, JsonApiResource } from '../types/validation.js'
+
+interface ValidationError {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning'
+  message: string
+  context?: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
+interface ParsedFieldsets {
+  [resourceType: string]: string[]
+}
+
 /**
  * Parses sparse fieldset parameters from query parameters
- * @param {Object} queryParams - Object containing query parameters
- * @returns {Object} Parsed fieldsets object with type -> fields mapping
+ * @param queryParams - Object containing query parameters
+ * @returns Parsed fieldsets object with type -> fields mapping
  */
-export function parseSparseFieldsets(queryParams) {
-  const fieldsets = {}
-  
+export function parseSparseFieldsets(queryParams: unknown): ParsedFieldsets {
+  const fieldsets: ParsedFieldsets = {}
+
   if (!queryParams) {
+    return fieldsets
+  }
+
+  if (typeof queryParams !== 'object' || queryParams === null) {
     return fieldsets
   }
 
@@ -20,7 +56,7 @@ export function parseSparseFieldsets(queryParams) {
   for (const [key, value] of Object.entries(queryParams)) {
     // Match fields[type] or fields%5Btype%5D patterns
     const match = key.match(/^fields(?:\[|%5B)([^%\]]+)(?:\]|%5D)$/i)
-    if (match) {
+    if (match && match[1]) {
       const resourceType = decodeURIComponent(match[1])
       if (typeof value === 'string' && value.trim()) {
         fieldsets[resourceType] = value.split(',').map(field => field.trim()).filter(field => field)
@@ -33,19 +69,19 @@ export function parseSparseFieldsets(queryParams) {
 
 /**
  * Validates that sparse fieldsets are correctly applied to a resource
- * @param {Object} resource - The resource object to validate
- * @param {Object} fieldsets - Parsed fieldsets object
- * @returns {Object} Validation result
+ * @param resource - The resource object to validate
+ * @param fieldsets - Parsed fieldsets object
+ * @returns Validation result
  */
-export function validateResourceFieldset(resource, fieldsets) {
-  const results = {
+export function validateResourceFieldset(resource: unknown, fieldsets: ParsedFieldsets): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
     details: []
   }
 
-  if (!resource || typeof resource !== 'object' || !resource.type) {
+  if (!resource || typeof resource !== 'object' || !('type' in resource)) {
     results.valid = false
     results.errors.push({
       test: 'Sparse Fieldset Validation',
@@ -54,7 +90,8 @@ export function validateResourceFieldset(resource, fieldsets) {
     return results
   }
 
-  const resourceType = resource.type
+  const typedResource = resource as JsonApiResource
+  const resourceType = typedResource.type
   const requestedFields = fieldsets[resourceType]
 
   // If no fieldset is specified for this resource type, no validation needed
@@ -68,7 +105,7 @@ export function validateResourceFieldset(resource, fieldsets) {
   }
 
   // Required fields that must always be present
-  if (!resource.id) {
+  if (!typedResource.id) {
     results.valid = false
     results.errors.push({
       test: 'Sparse Fieldset Required Fields',
@@ -76,7 +113,7 @@ export function validateResourceFieldset(resource, fieldsets) {
     })
   }
 
-  if (!resource.type) {
+  if (!typedResource.type) {
     results.valid = false
     results.errors.push({
       test: 'Sparse Fieldset Required Fields',
@@ -85,14 +122,14 @@ export function validateResourceFieldset(resource, fieldsets) {
   }
 
   // Validate attributes fieldset compliance
-  if (resource.attributes && typeof resource.attributes === 'object') {
-    const presentAttributes = Object.keys(resource.attributes)
+  if (typedResource.attributes && typeof typedResource.attributes === 'object') {
+    const presentAttributes = Object.keys(typedResource.attributes)
     const extraAttributes = presentAttributes.filter(attr => !requestedFields.includes(attr))
-    const missingAttributes = requestedFields.filter(field => 
+    const missingAttributes = requestedFields.filter(field =>
       // Only check for missing attributes that would be in the attributes object
       // (not relationships, links, or meta)
-      !['links', 'meta', 'relationships'].includes(field) && 
-      !(field in resource.attributes)
+      !['links', 'meta', 'relationships'].includes(field) &&
+      typedResource.attributes && !(field in typedResource.attributes)
     )
 
     // Check for fields that should not be present
@@ -130,10 +167,10 @@ export function validateResourceFieldset(resource, fieldsets) {
 
   // Validate that special fields (links, meta, relationships) can be present regardless of fieldset
   // These are allowed but not required to be in the fieldset specification
-  const specialFieldsPresent = []
-  if (resource.links) specialFieldsPresent.push('links')
-  if (resource.meta) specialFieldsPresent.push('meta')
-  if (resource.relationships) specialFieldsPresent.push('relationships')
+  const specialFieldsPresent: string[] = []
+  if (typedResource.links) specialFieldsPresent.push('links')
+  if (typedResource.meta) specialFieldsPresent.push('meta')
+  if (typedResource.relationships) specialFieldsPresent.push('relationships')
 
   if (specialFieldsPresent.length > 0) {
     results.details.push({
@@ -148,12 +185,12 @@ export function validateResourceFieldset(resource, fieldsets) {
 
 /**
  * Validates sparse fieldsets across an entire JSON:API response
- * @param {Object} response - The JSON:API response object
- * @param {Object} queryParams - The original query parameters used in the request
- * @returns {Object} Validation result
+ * @param response - The JSON:API response object
+ * @param queryParams - The original query parameters used in the request
+ * @returns Validation result
  */
-export function validateSparseFieldsets(response, queryParams) {
-  const results = {
+export function validateSparseFieldsets(response: unknown, queryParams: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -187,16 +224,18 @@ export function validateSparseFieldsets(response, queryParams) {
     message: `Parsed fieldsets for resource types: ${Object.keys(fieldsets).join(', ')}`
   })
 
+  const doc = response as JsonApiDocument
+
   // Validate primary data resources
-  if (response.data) {
-    const dataArray = Array.isArray(response.data) ? response.data : [response.data]
-    
+  if (doc.data) {
+    const dataArray = Array.isArray(doc.data) ? doc.data : [doc.data]
+
     dataArray.forEach((resource, index) => {
       if (resource && typeof resource === 'object') {
         const resourceValidation = validateResourceFieldset(resource, fieldsets)
-        
+
         // Add context to results
-        const contextSuffix = Array.isArray(response.data) ? ` (resource ${index})` : ''
+        const contextSuffix = Array.isArray(doc.data) ? ` (resource ${index})` : ''
         resourceValidation.details.forEach(detail => {
           detail.context = `Primary data${contextSuffix}`
         })
@@ -219,19 +258,20 @@ export function validateSparseFieldsets(response, queryParams) {
   }
 
   // Validate included resources
-  if (response.included && Array.isArray(response.included)) {
-    response.included.forEach((resource, index) => {
+  if (doc.included && Array.isArray(doc.included)) {
+    doc.included.forEach((resource, index) => {
       const resourceValidation = validateResourceFieldset(resource, fieldsets)
-      
+
       // Add context to results
+      const typedResource = resource as JsonApiResource
       resourceValidation.details.forEach(detail => {
-        detail.context = `Included resource ${index} (${resource.type}:${resource.id})`
+        detail.context = `Included resource ${index} (${typedResource.type}:${typedResource.id})`
       })
       resourceValidation.errors.forEach(error => {
-        error.context = `Included resource ${index} (${resource.type}:${resource.id})`
+        error.context = `Included resource ${index} (${typedResource.type}:${typedResource.id})`
       })
       resourceValidation.warnings.forEach(warning => {
-        warning.context = `Included resource ${index} (${resource.type}:${resource.id})`
+        warning.context = `Included resource ${index} (${typedResource.type}:${typedResource.id})`
       })
 
       results.details.push(...resourceValidation.details)
@@ -249,11 +289,11 @@ export function validateSparseFieldsets(response, queryParams) {
 
 /**
  * Validates query parameter syntax for sparse fieldsets
- * @param {Object} queryParams - The query parameters to validate
- * @returns {Object} Validation result
+ * @param queryParams - The query parameters to validate
+ * @returns Validation result
  */
-export function validateFieldsetSyntax(queryParams) {
-  const results = {
+export function validateFieldsetSyntax(queryParams: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -269,17 +309,17 @@ export function validateFieldsetSyntax(queryParams) {
     return results
   }
 
-  const fieldsetParams = []
-  const invalidParams = []
+  const fieldsetParams: string[] = []
+  const invalidParams: string[] = []
 
   for (const [key, value] of Object.entries(queryParams)) {
     // Check for fieldset parameter pattern
     const match = key.match(/^fields(?:\[|%5B)([^%\]]+)(?:\]|%5D)$/i)
-    if (match) {
+    if (match && match[1]) {
       fieldsetParams.push(key)
-      
+
       const resourceType = decodeURIComponent(match[1])
-      
+
       // Validate resource type format
       if (!resourceType || typeof resourceType !== 'string' || !resourceType.trim()) {
         results.valid = false
@@ -312,7 +352,7 @@ export function validateFieldsetSyntax(queryParams) {
 
       // Parse and validate individual fields
       const fields = value.split(',').map(f => f.trim()).filter(f => f)
-      
+
       if (fields.length === 0) {
         results.warnings.push({
           test: 'Fieldset Syntax',

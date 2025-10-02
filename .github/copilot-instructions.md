@@ -83,7 +83,7 @@
 │   │   ├── DocumentValidator.js # Document structure validation
 │   │   ├── ResourceValidator.js # Resource object validation
 │   │   ├── ErrorValidator.js    # Error response validation
-│   │   ├── QueryValidator.js    # Query parameter validation
+│   │   ├── QueryValidator.ts    # Query parameter validation
 │   │   ├── QueryParameterValidator.js # Query param specific logic
 │   │   └── PaginationValidator.js # Pagination validation
 │   ├── utils/                   # Core utilities (IMPLEMENTED)
