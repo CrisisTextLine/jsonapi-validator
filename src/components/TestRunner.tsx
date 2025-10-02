@@ -84,14 +84,6 @@ const TestRunner: React.FC<TestRunnerProps> = ({
       )
     }
 
-    if (validationState.error) {
-      return (
-        <div className="progress-indicator error">
-          <span>❌ {validationState.error}</span>
-        </div>
-      )
-    }
-
     if (validationState.results) {
       const { summary } = validationState.results
       const hasFailures = summary.failed > 0

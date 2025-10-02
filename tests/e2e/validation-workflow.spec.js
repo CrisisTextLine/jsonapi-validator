@@ -39,12 +39,12 @@ test.describe('JSON:API Validator - Endpoint Validation', () => {
   test('should handle network errors gracefully', async ({ page }) => {
     // Enter a non-existent endpoint
     await page.fill('input#apiUrl', 'http://localhost:9999/nonexistent');
-    
+
     // Click the Start Validation button
     await page.click('button:has-text("Start Validation")');
-    
-    // Should show an error message
-    await expect(page.locator('.card:has(h2:has-text("Configuration")) .progress-indicator.error')).toBeVisible({ timeout: 5000 });
+
+    // Should show an error message in the results panel
+    await expect(page.locator('.results-panel .progress-indicator.error')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/Validation failed/i)).toBeVisible({ timeout: 2000 });
   });
 
