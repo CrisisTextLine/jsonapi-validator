@@ -69,10 +69,15 @@ const App: FC = () => {
       const results = await runValidation(testConfig)
 
       if (results.metadata?.status === 'error') {
+        // Extract error message from the first failed test
+        const firstError = Object.values(results.sections || {})
+          .flatMap(section => section.tests)
+          .find(test => test.status === 'failed')
+
         setValidationState({
           isRunning: false,
           results: null,
-          error: 'Validation failed',
+          error: firstError?.message || 'Request failed',
           timestamp: results.metadata.timestamp
         })
       } else {
@@ -87,7 +92,7 @@ const App: FC = () => {
       setValidationState({
         isRunning: false,
         results: null,
-        error: `Validation failed: ${error instanceof Error ? error.message : String(error)}`,
+        error: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString()
       })
     }
