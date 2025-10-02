@@ -77,7 +77,7 @@ const App: FC = () => {
         setValidationState({
           isRunning: false,
           results: null,
-          error: firstError?.message || 'Request failed',
+          error: `Validation failed: ${firstError?.message || 'Request failed'}`,
           timestamp: results.metadata.timestamp
         })
       } else {
