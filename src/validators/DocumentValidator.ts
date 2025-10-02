@@ -1,6 +1,6 @@
 /**
- * DocumentValidator.js
- * 
+ * DocumentValidator.ts
+ *
  * Validates JSON:API v1.1 top-level document structure compliance.
  * Based on specification: https://jsonapi.org/format/1.1/
  */
@@ -8,14 +8,53 @@
 import { validateResourceObject, validateResourceCollection, validateMemberName } from './ResourceValidator.js'
 import { validateErrorsMember } from './ErrorValidator.js'
 import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
+import type { JsonApiDocument, JsonApiResource } from '../types/validation'
+
+interface ValidationError {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning'
+  message: string
+  context?: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
+interface LinkObject {
+  href: string
+  rel?: string
+  describedby?: string
+  title?: string
+  type?: string
+  hreflang?: string | string[]
+  meta?: Record<string, unknown>
+}
+
+type Link = string | LinkObject | null
 
 /**
  * Validates a JSON:API document's top-level structure
- * @param {any} response - The response object to validate
- * @returns {Object} Validation result with success/failure and details
+ * @param response - The response object to validate
+ * @returns Validation result with success/failure and details
  */
-export function validateDocument(response) {
-  const results = {
+export function validateDocument(response: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -35,7 +74,7 @@ export function validateDocument(response) {
   if (typeof response !== 'object') {
     results.valid = false
     results.errors.push({
-      test: 'JSON Parsing', 
+      test: 'JSON Parsing',
       message: 'Response must be a JSON object'
     })
     return results
@@ -47,10 +86,12 @@ export function validateDocument(response) {
     message: 'Response is valid JSON object'
   })
 
+  const doc = response as JsonApiDocument
+
   // Step 2: Check that top-level contains at least one of: data, errors, or meta
-  const hasData = Object.prototype.hasOwnProperty.call(response, 'data')
-  const hasErrors = Object.prototype.hasOwnProperty.call(response, 'errors')
-  const hasMeta = Object.prototype.hasOwnProperty.call(response, 'meta')
+  const hasData = Object.prototype.hasOwnProperty.call(doc, 'data')
+  const hasErrors = Object.prototype.hasOwnProperty.call(doc, 'errors')
+  const hasMeta = Object.prototype.hasOwnProperty.call(doc, 'meta')
 
   if (!hasData && !hasErrors && !hasMeta) {
     results.valid = false
@@ -75,7 +116,7 @@ export function validateDocument(response) {
     })
   } else {
     results.details.push({
-      test: 'Data and Errors Exclusivity', 
+      test: 'Data and Errors Exclusivity',
       status: 'passed',
       message: 'Document does not have both "data" and "errors" present'
     })
@@ -83,7 +124,7 @@ export function validateDocument(response) {
 
   // Step 4: Validate data structure if present
   if (hasData) {
-    const dataValidation = validateDataMember(response.data)
+    const dataValidation = validateDataMember(doc.data)
     results.details.push(...dataValidation.details)
     if (!dataValidation.valid) {
       results.valid = false
@@ -96,7 +137,7 @@ export function validateDocument(response) {
 
   // Step 4b: Validate errors structure if present
   if (hasErrors) {
-    const errorsValidation = validateErrorsMember(response.errors)
+    const errorsValidation = validateErrorsMember(doc.errors) as any
     results.details.push(...errorsValidation.details)
     if (!errorsValidation.valid) {
       results.valid = false
@@ -108,8 +149,8 @@ export function validateDocument(response) {
   }
 
   // Step 5: Validate optional included array and compound document rules
-  const hasIncluded = Object.prototype.hasOwnProperty.call(response, 'included')
-  
+  const hasIncluded = Object.prototype.hasOwnProperty.call(doc, 'included')
+
   if (hasIncluded) {
     // First validate that included is only present when data is present
     if (!hasData) {
@@ -125,9 +166,9 @@ export function validateDocument(response) {
         message: 'Included member is properly paired with data member'
       })
     }
-    
+
     // Validate the included member structure
-    const includedValidation = validateIncludedMember(response.included)
+    const includedValidation = validateIncludedMember(doc.included)
     results.details.push(...includedValidation.details)
     if (!includedValidation.valid) {
       results.valid = false
@@ -136,10 +177,10 @@ export function validateDocument(response) {
     if (includedValidation.warnings) {
       results.warnings.push(...includedValidation.warnings)
     }
-    
+
     // Validate compound document if both data and included are present and valid
     if (hasData && includedValidation.valid && results.valid) {
-      const compoundValidation = validateCompoundDocument(response.data, response.included)
+      const compoundValidation = validateCompoundDocument(doc.data, doc.included!)
       results.details.push(...compoundValidation.details)
       if (!compoundValidation.valid) {
         results.valid = false
@@ -152,8 +193,8 @@ export function validateDocument(response) {
   }
 
   // Step 6: Validate optional links object
-  if (Object.prototype.hasOwnProperty.call(response, 'links')) {
-    const linksValidation = validateLinksMember(response.links)
+  if (Object.prototype.hasOwnProperty.call(doc, 'links')) {
+    const linksValidation = validateLinksMember(doc.links!)
     results.details.push(...linksValidation.details)
     if (!linksValidation.valid) {
       results.valid = false
@@ -162,8 +203,8 @@ export function validateDocument(response) {
   }
 
   // Step 7: Validate optional jsonapi object
-  if (Object.prototype.hasOwnProperty.call(response, 'jsonapi')) {
-    const jsonApiValidation = validateJsonApiMember(response.jsonapi)
+  if (Object.prototype.hasOwnProperty.call(doc, 'jsonapi')) {
+    const jsonApiValidation = validateJsonApiMember(doc.jsonapi!)
     results.details.push(...jsonApiValidation.details)
     if (!jsonApiValidation.valid) {
       results.valid = false
@@ -172,8 +213,8 @@ export function validateDocument(response) {
   }
 
   // Step 7b: Validate optional top-level meta object
-  if (Object.prototype.hasOwnProperty.call(response, 'meta')) {
-    const metaValidation = validateTopLevelMetaMember(response.meta)
+  if (Object.prototype.hasOwnProperty.call(doc, 'meta')) {
+    const metaValidation = validateTopLevelMetaMember(doc.meta!)
     results.details.push(...metaValidation.details)
     if (!metaValidation.valid) {
       results.valid = false
@@ -183,7 +224,7 @@ export function validateDocument(response) {
 
   // Step 8: Check for additional top-level members beyond allowed ones
   const allowedMembers = ['data', 'errors', 'meta', 'links', 'included', 'jsonapi']
-  const presentMembers = Object.keys(response)
+  const presentMembers = Object.keys(doc)
   const additionalMembers = presentMembers.filter(member => !allowedMembers.includes(member))
 
   if (additionalMembers.length > 0) {
@@ -195,7 +236,7 @@ export function validateDocument(response) {
   } else {
     results.details.push({
       test: 'Additional Top-Level Members',
-      status: 'passed', 
+      status: 'passed',
       message: 'Document contains only allowed top-level members'
     })
   }
@@ -205,11 +246,11 @@ export function validateDocument(response) {
 
 /**
  * Validates the data member structure
- * @param {any} data - The data value to validate
- * @returns {Object} Validation result
+ * @param data - The data value to validate
+ * @returns Validation result
  */
-function validateDataMember(data) {
-  const results = {
+function validateDataMember(data: JsonApiResource | JsonApiResource[] | null | undefined): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -218,7 +259,7 @@ function validateDataMember(data) {
 
   // data can be:
   // - null for empty single resource
-  // - Resource object for single resource  
+  // - Resource object for single resource
   // - Array of resource objects for collection
   // - Empty array for empty collection
 
@@ -237,7 +278,7 @@ function validateDataMember(data) {
       })
     } else {
       // Validate resource collection using comprehensive ResourceValidator
-      const collectionValidation = validateResourceCollection(data, { context: 'data' })
+      const collectionValidation = validateResourceCollection(data, { context: 'data' } as any) as ValidationResult
       results.details.push(...collectionValidation.details)
       if (!collectionValidation.valid) {
         results.valid = false
@@ -249,7 +290,7 @@ function validateDataMember(data) {
     }
   } else if (typeof data === 'object') {
     // Single resource object - use comprehensive ResourceValidator
-    const resourceValidation = validateResourceObject(data, { context: 'data' })
+    const resourceValidation = validateResourceObject(data, { context: 'data' } as any) as ValidationResult
     results.details.push(...resourceValidation.details)
     if (!resourceValidation.valid) {
       results.valid = false
@@ -261,7 +302,7 @@ function validateDataMember(data) {
   } else {
     results.valid = false
     results.errors.push({
-      test: 'Data Member Structure', 
+      test: 'Data Member Structure',
       message: 'Data must be null, a resource object, or an array of resource objects'
     })
   }
@@ -269,15 +310,13 @@ function validateDataMember(data) {
   return results
 }
 
-
-
 /**
  * Validates the included member
- * @param {any} included - The included value to validate
- * @returns {Object} Validation result
+ * @param included - The included value to validate
+ * @returns Validation result
  */
-function validateIncludedMember(included) {
-  const results = {
+function validateIncludedMember(included: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -301,7 +340,7 @@ function validateIncludedMember(included) {
   }
 
   // Validate each resource in included array using comprehensive ResourceValidator
-  const collectionValidation = validateResourceCollection(included, { context: 'included' })
+  const collectionValidation = validateResourceCollection(included as JsonApiResource[], { context: 'included' } as any) as ValidationResult
   results.details.push(...collectionValidation.details)
   if (!collectionValidation.valid) {
     results.valid = false
@@ -316,12 +355,15 @@ function validateIncludedMember(included) {
 
 /**
  * Validates compound document rules - linkage, duplicates, and circular references
- * @param {any} data - The primary data (resource object, array of resources, or null)
- * @param {Array} included - The included resources array
- * @returns {Object} Validation result
+ * @param data - The primary data (resource object, array of resources, or null)
+ * @param included - The included resources array
+ * @returns Validation result
  */
-function validateCompoundDocument(data, included) {
-  const results = {
+function validateCompoundDocument(
+  data: JsonApiResource | JsonApiResource[] | null | undefined,
+  included: JsonApiResource[]
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -388,13 +430,14 @@ function validateCompoundDocument(data, included) {
 
 /**
  * Validates the links member
- * @param {any} links - The links value to validate
- * @returns {Object} Validation result
+ * @param links - The links value to validate
+ * @returns Validation result
  */
-function validateLinksMember(links) {
-  const results = {
+function validateLinksMember(links: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -407,16 +450,17 @@ function validateLinksMember(links) {
     return results
   }
 
-  const linkKeys = Object.keys(links)
+  const linksObj = links as Record<string, Link>
+  const linkKeys = Object.keys(linksObj)
   let allLinksValid = true
-  
+
   // Common pagination link names for document-level links
   const paginationLinks = ['first', 'last', 'prev', 'next', 'self', 'related']
-  
+
   for (const linkName of linkKeys) {
-    const linkValue = links[linkName]
+    const linkValue = linksObj[linkName]!
     const context = `links.${linkName}`
-    
+
     // Validate the link value (string, link object, or null)
     const linkValidation = validateDocumentLinkValue(linkValue, context, linkName)
     results.details.push(...linkValidation.details)
@@ -429,7 +473,7 @@ function validateLinksMember(links) {
   if (allLinksValid) {
     const knownLinks = linkKeys.filter(key => paginationLinks.includes(key))
     const customLinks = linkKeys.filter(key => !paginationLinks.includes(key))
-    
+
     let message = `Links object contains ${linkKeys.length} valid link(s)`
     if (knownLinks.length > 0) {
       message += ` (includes: ${knownLinks.join(', ')})`
@@ -437,10 +481,10 @@ function validateLinksMember(links) {
     if (customLinks.length > 0) {
       message += ` (custom links: ${customLinks.join(', ')})`
     }
-    
+
     results.details.push({
       test: 'Links Member Structure',
-      status: 'passed', 
+      status: 'passed',
       message
     })
   } else {
@@ -452,15 +496,16 @@ function validateLinksMember(links) {
 
 /**
  * Validates a single document-level link value
- * @param {any} link - The link value to validate
- * @param {string} context - Context for error messages
- * @param {string} linkName - Name of the link being validated
- * @returns {Object} Validation result
+ * @param link - The link value to validate
+ * @param context - Context for error messages
+ * @param linkName - Name of the link being validated
+ * @returns Validation result
  */
-function validateDocumentLinkValue(link, context, linkName) {
-  const results = {
+function validateDocumentLinkValue(link: Link, context: string, linkName: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -502,15 +547,17 @@ function validateDocumentLinkValue(link, context, linkName) {
       }
     }
   } else if (typeof link === 'object' && !Array.isArray(link)) {
+    const linkObj = link as LinkObject
+
     // Link object must have href member
-    if (!Object.prototype.hasOwnProperty.call(link, 'href')) {
+    if (!Object.prototype.hasOwnProperty.call(linkObj, 'href')) {
       results.valid = false
       results.errors.push({
         test: 'Document Link Object Structure',
         context,
         message: 'Document link object must have an "href" member'
       })
-    } else if (typeof link.href !== 'string' || link.href.length === 0) {
+    } else if (typeof linkObj.href !== 'string' || linkObj.href.length === 0) {
       results.valid = false
       results.errors.push({
         test: 'Document Link Object Structure',
@@ -519,8 +566,8 @@ function validateDocumentLinkValue(link, context, linkName) {
       })
     } else {
       // Validate href URL format
-      if (!isValidUrl(link.href)) {
-        const urlError = getUrlValidationError(link.href)
+      if (!isValidUrl(linkObj.href)) {
+        const urlError = getUrlValidationError(linkObj.href)
         results.valid = false
         results.errors.push({
           test: 'Document Link Object URL Format',
@@ -538,8 +585,8 @@ function validateDocumentLinkValue(link, context, linkName) {
     }
 
     // Validate optional meta member
-    if (Object.prototype.hasOwnProperty.call(link, 'meta')) {
-      if (typeof link.meta !== 'object' || link.meta === null || Array.isArray(link.meta)) {
+    if (Object.prototype.hasOwnProperty.call(linkObj, 'meta')) {
+      if (typeof linkObj.meta !== 'object' || linkObj.meta === null || Array.isArray(linkObj.meta)) {
         results.valid = false
         results.errors.push({
           test: 'Document Link Object Meta',
@@ -548,16 +595,16 @@ function validateDocumentLinkValue(link, context, linkName) {
         })
       } else {
         // Validate meta member names follow JSON:API naming conventions
-        const metaKeys = Object.keys(link.meta)
+        const metaKeys = Object.keys(linkObj.meta)
         for (const metaName of metaKeys) {
-          const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
+          const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`) as ValidationResult
           results.details.push(...nameValidation.details)
           if (!nameValidation.valid) {
             results.valid = false
             results.errors.push(...nameValidation.errors)
           }
         }
-        
+
         results.details.push({
           test: 'Document Link Object Meta',
           status: 'passed',
@@ -569,10 +616,10 @@ function validateDocumentLinkValue(link, context, linkName) {
 
     // Validate optional JSON:API v1.1 link object members
     const validLinkMembers = ['href', 'rel', 'describedby', 'title', 'type', 'hreflang', 'meta']
-    
+
     // Validate 'rel' member if present
-    if (Object.prototype.hasOwnProperty.call(link, 'rel')) {
-      if (typeof link.rel !== 'string' || link.rel.length === 0) {
+    if (Object.prototype.hasOwnProperty.call(linkObj, 'rel')) {
+      if (typeof linkObj.rel !== 'string' || linkObj.rel.length === 0) {
         results.valid = false
         results.errors.push({
           test: 'Document Link Object Rel',
@@ -584,14 +631,14 @@ function validateDocumentLinkValue(link, context, linkName) {
           test: 'Document Link Object Rel',
           status: 'passed',
           context,
-          message: `Link rel type is valid: "${link.rel}"`
+          message: `Link rel type is valid: "${linkObj.rel}"`
         })
       }
     }
-    
+
     // Validate 'describedby' member if present
-    if (Object.prototype.hasOwnProperty.call(link, 'describedby')) {
-      if (typeof link.describedby !== 'string' || !isValidUrl(link.describedby)) {
+    if (Object.prototype.hasOwnProperty.call(linkObj, 'describedby')) {
+      if (typeof linkObj.describedby !== 'string' || !isValidUrl(linkObj.describedby)) {
         results.valid = false
         results.errors.push({
           test: 'Document Link Object Describedby',
@@ -607,10 +654,10 @@ function validateDocumentLinkValue(link, context, linkName) {
         })
       }
     }
-    
+
     // Validate 'title' member if present
-    if (Object.prototype.hasOwnProperty.call(link, 'title')) {
-      if (typeof link.title !== 'string' || link.title.length === 0) {
+    if (Object.prototype.hasOwnProperty.call(linkObj, 'title')) {
+      if (typeof linkObj.title !== 'string' || linkObj.title.length === 0) {
         results.valid = false
         results.errors.push({
           test: 'Document Link Object Title',
@@ -622,14 +669,14 @@ function validateDocumentLinkValue(link, context, linkName) {
           test: 'Document Link Object Title',
           status: 'passed',
           context,
-          message: `Link title is valid: "${link.title}"`
+          message: `Link title is valid: "${linkObj.title}"`
         })
       }
     }
-    
+
     // Validate 'type' member if present
-    if (Object.prototype.hasOwnProperty.call(link, 'type')) {
-      if (typeof link.type !== 'string' || link.type.length === 0) {
+    if (Object.prototype.hasOwnProperty.call(linkObj, 'type')) {
+      if (typeof linkObj.type !== 'string' || linkObj.type.length === 0) {
         results.valid = false
         results.errors.push({
           test: 'Document Link Object Type',
@@ -638,45 +685,45 @@ function validateDocumentLinkValue(link, context, linkName) {
         })
       } else {
         // Basic media type validation
-        if (!link.type.includes('/')) {
+        if (!linkObj.type.includes('/')) {
           results.warnings.push({
             test: 'Document Link Object Type',
             context,
-            message: `Link type "${link.type}" should be a valid media type (e.g., "application/json")`
+            message: `Link type "${linkObj.type}" should be a valid media type (e.g., "application/json")`
           })
         } else {
           results.details.push({
             test: 'Document Link Object Type',
             status: 'passed',
             context,
-            message: `Link media type is valid: "${link.type}"`
+            message: `Link media type is valid: "${linkObj.type}"`
           })
         }
       }
     }
-    
+
     // Validate 'hreflang' member if present
-    if (Object.prototype.hasOwnProperty.call(link, 'hreflang')) {
-      if (typeof link.hreflang === 'string') {
+    if (Object.prototype.hasOwnProperty.call(linkObj, 'hreflang')) {
+      if (typeof linkObj.hreflang === 'string') {
         // Single language tag
-        if (!isValidLanguageTag(link.hreflang)) {
+        if (!isValidLanguageTag(linkObj.hreflang)) {
           results.warnings.push({
             test: 'Document Link Object Hreflang',
             context,
-            message: `Link hreflang "${link.hreflang}" should be a valid language tag (e.g., "en", "en-US")`
+            message: `Link hreflang "${linkObj.hreflang}" should be a valid language tag (e.g., "en", "en-US")`
           })
         } else {
           results.details.push({
             test: 'Document Link Object Hreflang',
             status: 'passed',
             context,
-            message: `Link hreflang is valid: "${link.hreflang}"`
+            message: `Link hreflang is valid: "${linkObj.hreflang}"`
           })
         }
-      } else if (Array.isArray(link.hreflang)) {
+      } else if (Array.isArray(linkObj.hreflang)) {
         // Array of language tags
         let allValid = true
-        link.hreflang.forEach(lang => {
+        linkObj.hreflang.forEach(lang => {
           if (typeof lang !== 'string' || !isValidLanguageTag(lang)) {
             allValid = false
           }
@@ -692,7 +739,7 @@ function validateDocumentLinkValue(link, context, linkName) {
             test: 'Document Link Object Hreflang',
             status: 'passed',
             context,
-            message: `Link hreflang array is valid: [${link.hreflang.join(', ')}]`
+            message: `Link hreflang array is valid: [${linkObj.hreflang.join(', ')}]`
           })
         }
       } else {
@@ -706,9 +753,9 @@ function validateDocumentLinkValue(link, context, linkName) {
     }
 
     // Check for additional members beyond allowed ones
-    const linkKeys = Object.keys(link)
+    const linkKeys = Object.keys(linkObj)
     const additionalMembers = linkKeys.filter(key => !validLinkMembers.includes(key))
-    
+
     if (additionalMembers.length > 0) {
       results.valid = false
       results.errors.push({
@@ -738,13 +785,14 @@ function validateDocumentLinkValue(link, context, linkName) {
 
 /**
  * Validates the jsonapi member
- * @param {any} jsonapi - The jsonapi value to validate
- * @returns {Object} Validation result
+ * @param jsonapi - The jsonapi value to validate
+ * @returns Validation result
  */
-function validateJsonApiMember(jsonapi) {
-  const results = {
+function validateJsonApiMember(jsonapi: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -757,9 +805,11 @@ function validateJsonApiMember(jsonapi) {
     return results
   }
 
+  const jsonApiObj = jsonapi as { version?: string; meta?: Record<string, unknown> }
+
   // Check for additional members beyond allowed ones
   const allowedMembers = ['version', 'meta']
-  const presentMembers = Object.keys(jsonapi)
+  const presentMembers = Object.keys(jsonApiObj)
   const additionalMembers = presentMembers.filter(member => !allowedMembers.includes(member))
 
   if (additionalMembers.length > 0) {
@@ -777,8 +827,8 @@ function validateJsonApiMember(jsonapi) {
   }
 
   // Check for version if present
-  if (Object.prototype.hasOwnProperty.call(jsonapi, 'version')) {
-    if (typeof jsonapi.version !== 'string') {
+  if (Object.prototype.hasOwnProperty.call(jsonApiObj, 'version')) {
+    if (typeof jsonApiObj.version !== 'string') {
       results.valid = false
       results.errors.push({
         test: 'JSON:API Version String Format',
@@ -787,17 +837,17 @@ function validateJsonApiMember(jsonapi) {
     } else {
       // Validate supported version values
       const supportedVersions = ['1.0', '1.1']
-      if (!supportedVersions.includes(jsonapi.version)) {
+      if (!supportedVersions.includes(jsonApiObj.version)) {
         results.valid = false
         results.errors.push({
           test: 'JSON:API Version Value',
-          message: `JSON:API version "${jsonapi.version}" is not supported. Supported versions: ${supportedVersions.join(', ')}`
+          message: `JSON:API version "${jsonApiObj.version}" is not supported. Supported versions: ${supportedVersions.join(', ')}`
         })
       } else {
         results.details.push({
           test: 'JSON:API Version Value',
           status: 'passed',
-          message: `JSON:API version "${jsonapi.version}" is supported`
+          message: `JSON:API version "${jsonApiObj.version}" is supported`
         })
       }
     }
@@ -810,8 +860,8 @@ function validateJsonApiMember(jsonapi) {
   }
 
   // Validate optional meta object
-  if (Object.prototype.hasOwnProperty.call(jsonapi, 'meta')) {
-    const metaValidation = validateJsonApiMetaMember(jsonapi.meta)
+  if (Object.prototype.hasOwnProperty.call(jsonApiObj, 'meta')) {
+    const metaValidation = validateJsonApiMetaMember(jsonApiObj.meta!)
     results.details.push(...metaValidation.details)
     if (!metaValidation.valid) {
       results.valid = false
@@ -824,13 +874,14 @@ function validateJsonApiMember(jsonapi) {
 
 /**
  * Validates the meta member within jsonapi object
- * @param {any} meta - The meta value to validate
- * @returns {Object} Validation result
+ * @param meta - The meta value to validate
+ * @returns Validation result
  */
-function validateJsonApiMetaMember(meta) {
-  const results = {
+function validateJsonApiMetaMember(meta: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -843,11 +894,12 @@ function validateJsonApiMetaMember(meta) {
     return results
   }
 
-  const metaKeys = Object.keys(meta)
-  
+  const metaObj = meta as Record<string, unknown>
+  const metaKeys = Object.keys(metaObj)
+
   // Validate each meta member name follows JSON:API naming conventions
   for (const metaName of metaKeys) {
-    const nameValidation = validateMemberName(metaName, `jsonapi.meta.${metaName}`)
+    const nameValidation = validateMemberName(metaName, `jsonapi.meta.${metaName}`) as ValidationResult
     results.details.push(...nameValidation.details)
     if (!nameValidation.valid) {
       results.valid = false
@@ -866,13 +918,14 @@ function validateJsonApiMetaMember(meta) {
 
 /**
  * Validates the top-level meta member
- * @param {any} meta - The meta value to validate
- * @returns {Object} Validation result
+ * @param meta - The meta value to validate
+ * @returns Validation result
  */
-function validateTopLevelMetaMember(meta) {
-  const results = {
+function validateTopLevelMetaMember(meta: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -885,11 +938,12 @@ function validateTopLevelMetaMember(meta) {
     return results
   }
 
-  const metaKeys = Object.keys(meta)
-  
+  const metaObj = meta as Record<string, unknown>
+  const metaKeys = Object.keys(metaObj)
+
   // Validate each meta member name follows JSON:API naming conventions
   for (const metaName of metaKeys) {
-    const nameValidation = validateMemberName(metaName, `meta.${metaName}`)
+    const nameValidation = validateMemberName(metaName, `meta.${metaName}`) as ValidationResult
     results.details.push(...nameValidation.details)
     if (!nameValidation.valid) {
       results.valid = false
@@ -908,18 +962,19 @@ function validateTopLevelMetaMember(meta) {
 
 /**
  * Validates that there are no duplicate resources in the included array
- * @param {Array} included - The included resources array
- * @returns {Object} Validation result
+ * @param included - The included resources array
+ * @returns Validation result
  */
-function validateNoDuplicatesInIncluded(included) {
-  const results = {
+function validateNoDuplicatesInIncluded(included: JsonApiResource[]): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
-  const seenResources = new Set()
-  const duplicates = []
+  const seenResources = new Set<string>()
+  const duplicates: Array<{ type: string; id: string; index: number }> = []
 
   for (let i = 0; i < included.length; i++) {
     const resource = included[i]
@@ -954,12 +1009,15 @@ function validateNoDuplicatesInIncluded(included) {
 
 /**
  * Validates that all included resources are referenced from the primary data
- * @param {any} data - The primary data (resource object, array, or null)
- * @param {Array} included - The included resources array
- * @returns {Object} Validation result
+ * @param data - The primary data (resource object, array, or null)
+ * @param included - The included resources array
+ * @returns Validation result
  */
-function validateResourceLinkage(data, included) {
-  const results = {
+function validateResourceLinkage(
+  data: JsonApiResource | JsonApiResource[] | null | undefined,
+  included: JsonApiResource[]
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -968,9 +1026,9 @@ function validateResourceLinkage(data, included) {
 
   // Get all resource identifiers referenced from primary data
   const referencedResources = extractReferencedResources(data)
-  
+
   // Create set of included resource identifiers
-  const includedResources = new Set()
+  const includedResources = new Set<string>()
   included.forEach(resource => {
     if (resource && typeof resource === 'object' && resource.type && resource.id) {
       includedResources.add(`${resource.type}:${resource.id}`)
@@ -978,19 +1036,23 @@ function validateResourceLinkage(data, included) {
   })
 
   // Find orphaned resources (included but not referenced)
-  const orphanedResources = []
+  const orphanedResources: Array<{ type: string; id: string }> = []
   includedResources.forEach(resourceKey => {
     if (!referencedResources.has(resourceKey)) {
-      const [type, id] = resourceKey.split(':')
+      const parts = resourceKey.split(':')
+      const type = parts[0] || ''
+      const id = parts.slice(1).join(':') || ''
       orphanedResources.push({ type, id })
     }
   })
 
   // Find missing resources (referenced but not included)
-  const missingResources = []
+  const missingResources: Array<{ type: string; id: string }> = []
   referencedResources.forEach(resourceKey => {
     if (!includedResources.has(resourceKey)) {
-      const [type, id] = resourceKey.split(':')
+      const parts = resourceKey.split(':')
+      const type = parts[0] || ''
+      const id = parts.slice(1).join(':') || ''
       missingResources.push({ type, id })
     }
   })
@@ -1035,24 +1097,24 @@ function validateResourceLinkage(data, included) {
 
 /**
  * Extracts all resource identifiers referenced from relationships in primary data
- * @param {any} data - The primary data (resource object, array, or null)
- * @returns {Set} Set of resource identifiers in format "type:id"
+ * @param data - The primary data (resource object, array, or null)
+ * @returns Set of resource identifiers in format "type:id"
  */
-function extractReferencedResources(data) {
-  const references = new Set()
+function extractReferencedResources(data: JsonApiResource | JsonApiResource[] | null | undefined): Set<string> {
+  const references = new Set<string>()
 
-  if (data === null) {
+  if (data === null || data === undefined) {
     return references
   }
 
   const resources = Array.isArray(data) ? data : [data]
-  
+
   resources.forEach(resource => {
     if (resource && typeof resource === 'object' && resource.relationships) {
-      Object.values(resource.relationships).forEach(relationship => {
+      Object.values(resource.relationships).forEach((relationship: any) => {
         if (relationship && relationship.data) {
           const relData = Array.isArray(relationship.data) ? relationship.data : [relationship.data]
-          relData.forEach(rel => {
+          relData.forEach((rel: any) => {
             if (rel && rel.type && rel.id) {
               references.add(`${rel.type}:${rel.id}`)
             }
@@ -1069,22 +1131,26 @@ function extractReferencedResources(data) {
  * Validates that there are no circular references in compound documents
  * Note: In JSON:API, bidirectional relationships are normal and allowed.
  * This validation primarily serves as informational analysis rather than strict validation.
- * @param {any} data - The primary data
- * @param {Array} included - The included resources array
- * @returns {Object} Validation result
+ * @param data - The primary data
+ * @param included - The included resources array
+ * @returns Validation result
  */
-function validateNoCircularReferences(data, included) {
-  const results = {
+function validateNoCircularReferences(
+  data: JsonApiResource | JsonApiResource[] | null | undefined,
+  included: JsonApiResource[]
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
   // Create a map of all resources (primary + included) for reference lookup
-  const allResources = new Map()
-  
+  const allResources = new Map<string, JsonApiResource>()
+
   // Add primary data resources
-  if (data !== null) {
+  if (data !== null && data !== undefined) {
     const primaryResources = Array.isArray(data) ? data : [data]
     primaryResources.forEach(resource => {
       if (resource && typeof resource === 'object' && resource.type && resource.id) {
@@ -1092,7 +1158,7 @@ function validateNoCircularReferences(data, included) {
       }
     })
   }
-  
+
   // Add included resources
   included.forEach(resource => {
     if (resource && typeof resource === 'object' && resource.type && resource.id) {
@@ -1102,7 +1168,7 @@ function validateNoCircularReferences(data, included) {
 
   // Analyze relationship structure for informational purposes
   const relationshipCount = analyzeRelationshipStructure(allResources)
-  
+
   results.details.push({
     test: 'Circular References',
     status: 'passed',
@@ -1114,28 +1180,28 @@ function validateNoCircularReferences(data, included) {
 
 /**
  * Analyzes relationship structure in compound documents for informational purposes
- * @param {Map} allResources - Map of all resources (primary + included)
- * @returns {Object} Analysis results with counts
+ * @param allResources - Map of all resources (primary + included)
+ * @returns Analysis results with counts
  */
-function analyzeRelationshipStructure(allResources) {
+function analyzeRelationshipStructure(allResources: Map<string, JsonApiResource>): { total: number; bidirectional: number } {
   let totalRelationships = 0
   let bidirectionalCount = 0
-  const relationships = new Set()
-  
+  const relationships = new Set<string>()
+
   for (const [resourceKey, resource] of allResources) {
     if (resource.relationships) {
-      Object.values(resource.relationships).forEach(relationship => {
+      Object.values(resource.relationships).forEach((relationship: any) => {
         if (relationship && relationship.data) {
           const relData = Array.isArray(relationship.data) ? relationship.data : [relationship.data]
-          relData.forEach(rel => {
+          relData.forEach((rel: any) => {
             if (rel && rel.type && rel.id) {
               const relKey = `${rel.type}:${rel.id}`
               const relationshipPair = `${resourceKey}->${relKey}`
               const reverseRelationshipPair = `${relKey}->${resourceKey}`
-              
+
               relationships.add(relationshipPair)
               totalRelationships++
-              
+
               // Check if reverse relationship exists
               if (relationships.has(reverseRelationshipPair)) {
                 bidirectionalCount++
@@ -1146,7 +1212,7 @@ function analyzeRelationshipStructure(allResources) {
       })
     }
   }
-  
+
   return {
     total: totalRelationships,
     bidirectional: Math.floor(bidirectionalCount / 2) // Each bidirectional pair is counted twice
@@ -1155,12 +1221,12 @@ function analyzeRelationshipStructure(allResources) {
 
 /**
  * Helper function to validate language tags according to BCP 47
- * @param {string} langTag - Language tag to validate
- * @returns {boolean} True if valid language tag format
+ * @param langTag - Language tag to validate
+ * @returns True if valid language tag format
  */
-function isValidLanguageTag(langTag) {
+function isValidLanguageTag(langTag: string): boolean {
   if (!langTag || typeof langTag !== 'string') return false
-  
+
   // Basic BCP 47 language tag validation
   // Simplified regex for common patterns: language[-script][-region][-variant]
   const langTagRegex = /^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2}|[0-9]{3})?(-[a-zA-Z0-9]{5,8}|-[0-9][a-zA-Z0-9]{3})*$/
