@@ -9,6 +9,11 @@ pnpm-debug.log*
 dist/
 build/
 
+# Test outputs
+coverage/
+playwright-report/
+test-results/
+
 # Environment variables
 .env
 .env.local
@@ -36,3 +41,7 @@ Thumbs.db
 *.tmp
 *.temp
 /tmp/
+vitest-ctrf/
+playwright-report/
+ctrf/
+test-results/
