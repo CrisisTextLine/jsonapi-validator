@@ -1,9 +1,18 @@
 import { useState } from 'react'
-import { exportReport } from '../utils/ValidationReporter.js'
+import type { ValidationState } from '../types/validation.js'
+import { exportReport, type ComprehensiveReport } from '../utils/ValidationReporter.js'
 
-const EnhancedResultsPanel = ({ validationState }) => {
-  const [activeSection, setActiveSection] = useState(null)
-  const [showSuggestions, setShowSuggestions] = useState(false)
+interface EnhancedResultsPanelProps {
+  validationState: ValidationState
+}
+
+type StatusType = 'passed' | 'failed' | 'warning' | 'error'
+type SeverityType = 'error' | 'warning' | 'info'
+type ExportFormat = 'json' | 'markdown' | 'pdf'
+
+const EnhancedResultsPanel = ({ validationState }: EnhancedResultsPanelProps) => {
+  const [activeSection, setActiveSection] = useState<string | null>(null)
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
 
   if (validationState.isRunning) {
     return (
@@ -45,10 +54,10 @@ const EnhancedResultsPanel = ({ validationState }) => {
     )
   }
 
-  const report = validationState.results
+  const report: ComprehensiveReport = validationState.results as ComprehensiveReport
   const { metadata, summary, sections, suggestions } = report
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: StatusType): string => {
     switch (status) {
       case 'passed': return '✅'
       case 'failed': return '❌'
@@ -58,7 +67,7 @@ const EnhancedResultsPanel = ({ validationState }) => {
     }
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: StatusType): string => {
     switch (status) {
       case 'passed': return '#4caf50'
       case 'failed': return '#f44336'
@@ -68,7 +77,7 @@ const EnhancedResultsPanel = ({ validationState }) => {
     }
   }
 
-  const getSeverityColor = (severity) => {
+  const getSeverityColor = (severity: SeverityType): string => {
     switch (severity) {
       case 'error': return '#f44336'
       case 'warning': return '#ff9800'
@@ -77,10 +86,10 @@ const EnhancedResultsPanel = ({ validationState }) => {
     }
   }
 
-  const handleExport = async (format) => {
+  const handleExport = async (format: ExportFormat): Promise<void> => {
     try {
       const exportContent = exportReport(report, format)
-      
+
       if (format === 'json') {
         downloadFile(exportContent, `validation-report-${Date.now()}.json`, 'application/json')
       } else if (format === 'markdown') {
@@ -88,16 +97,19 @@ const EnhancedResultsPanel = ({ validationState }) => {
       } else if (format === 'pdf') {
         // For PDF, open in new window for browser's print-to-PDF
         const newWindow = window.open('', '_blank')
-        newWindow.document.write(exportContent)
-        newWindow.document.close()
+        if (newWindow) {
+          newWindow.document.write(exportContent)
+          newWindow.document.close()
+        }
       }
     } catch (error) {
       console.error('Export failed:', error)
-      alert(`Export failed: ${error.message}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Export failed: ${errorMessage}`)
     }
   }
 
-  const downloadFile = (content, filename, mimeType) => {
+  const downloadFile = (content: string, filename: string, mimeType: string): void => {
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -109,7 +121,15 @@ const EnhancedResultsPanel = ({ validationState }) => {
     URL.revokeObjectURL(url)
   }
 
-  const getSectionIcon = (sectionName, sectionData) => {
+  const getSectionIcon = (_sectionName: string, sectionData: {
+    tests: unknown[]
+    summary: {
+      total: number
+      passed: number
+      failed: number
+      warnings: number
+    }
+  }): string => {
     if (sectionData.summary.failed > 0) return '❌'
     if (sectionData.summary.warnings > 0) return '⚠️'
     if (sectionData.summary.passed > 0) return '✅'
@@ -119,9 +139,9 @@ const EnhancedResultsPanel = ({ validationState }) => {
   return (
     <div className="results-panel">
       {/* Header with overall status */}
-      <div style={{ 
-        marginBottom: '20px', 
-        padding: '20px', 
+      <div style={{
+        marginBottom: '20px',
+        padding: '20px',
         background: `linear-gradient(135deg, ${getStatusColor(metadata.status)}15, ${getStatusColor(metadata.status)}05)`,
         borderRadius: '8px',
         border: `2px solid ${getStatusColor(metadata.status)}30`
@@ -234,13 +254,13 @@ const EnhancedResultsPanel = ({ validationState }) => {
             <span>💡 {suggestions.length} Suggestion{suggestions.length > 1 ? 's' : ''} Available</span>
             <span>{showSuggestions ? '−' : '+'}</span>
           </button>
-          
+
           {showSuggestions && (
             <div style={{ marginTop: '10px', padding: '15px', backgroundColor: 'white', border: '1px solid #ffeaa7', borderRadius: '8px' }}>
               {suggestions.map((suggestion, index) => (
                 <div key={index} style={{ marginBottom: '15px', paddingBottom: '15px', borderBottom: index < suggestions.length - 1 ? '1px solid #eee' : 'none' }}>
                   <h4 style={{ margin: '0 0 8px 0', color: '#333', fontSize: '14px' }}>{suggestion.title}</h4>
-                  <p style={{ margin: 0, color: '#666', fontSize: '13px', lineHeight: '1.4' }}>{suggestion.suggestion}</p>
+                  <p style={{ margin: 0, color: '#666', fontSize: '13px', lineHeight: '1.4' }}>{suggestion.description}</p>
                 </div>
               ))}
             </div>
@@ -251,12 +271,12 @@ const EnhancedResultsPanel = ({ validationState }) => {
       {/* Validation Sections */}
       <div>
         <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Validation Results by Category</h3>
-        
+
         {Object.entries(sections).map(([sectionName, sectionData]) => {
           if (sectionData.tests.length === 0) return null
 
           const isActive = activeSection === sectionName
-          
+
           return (
             <div key={sectionName} style={{ marginBottom: '15px' }}>
               <button
@@ -312,7 +332,7 @@ const EnhancedResultsPanel = ({ validationState }) => {
                         padding: '12px',
                         backgroundColor: 'white',
                         borderRadius: '6px',
-                        borderLeft: `4px solid ${getSeverityColor(test.severity)}`,
+                        borderLeft: `4px solid ${getSeverityColor(test.severity || 'info')}`,
                         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                       }}
                     >
@@ -320,28 +340,28 @@ const EnhancedResultsPanel = ({ validationState }) => {
                         <span style={{ marginRight: '8px', fontSize: '16px' }}>
                           {getStatusIcon(test.status)}
                         </span>
-                        <span style={{ 
-                          fontWeight: 'bold', 
-                          color: getSeverityColor(test.severity),
+                        <span style={{
+                          fontWeight: 'bold',
+                          color: getSeverityColor(test.severity || 'info'),
                           textTransform: 'uppercase',
                           fontSize: '11px',
                           letterSpacing: '0.5px'
                         }}>
-                          {test.severity}
+                          {test.severity || 'info'}
                         </span>
                         <span style={{ marginLeft: '12px', fontWeight: '600', color: '#333', fontSize: '14px' }}>
                           {test.test}
                         </span>
                       </div>
-                      
+
                       <div style={{ color: '#666', fontSize: '13px', lineHeight: '1.4', marginBottom: '8px' }}>
                         {test.message}
                       </div>
 
                       {test.location && (
-                        <div style={{ 
-                          backgroundColor: '#f5f5f5', 
-                          padding: '8px', 
+                        <div style={{
+                          backgroundColor: '#f5f5f5',
+                          padding: '8px',
                           borderRadius: '4px',
                           fontSize: '12px',
                           fontFamily: 'monospace'
@@ -364,10 +384,10 @@ const EnhancedResultsPanel = ({ validationState }) => {
       </div>
 
       {/* Additional Information */}
-      <div style={{ 
-        marginTop: '20px', 
-        padding: '15px', 
-        backgroundColor: '#e3f2fd', 
+      <div style={{
+        marginTop: '20px',
+        padding: '15px',
+        backgroundColor: '#e3f2fd',
         borderRadius: '8px',
         fontSize: '14px',
         color: '#1976d2'

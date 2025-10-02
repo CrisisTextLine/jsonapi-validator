@@ -1,9 +1,48 @@
 import React from 'react'
+import type { FC, ChangeEvent, FormEvent } from 'react'
 
-const ConfigForm = ({ config, onChange, disabled }) => {
-  const [errors, setErrors] = React.useState({})
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+type AuthType = 'none' | 'bearer' | 'apiKey' | 'basic'
 
-  const validateUrl = (url) => {
+interface CustomHeader {
+  key: string
+  value: string
+}
+
+interface AuthCredentials {
+  token?: string
+  key?: string
+  headerName?: string
+  username?: string
+  password?: string
+}
+
+interface TestConfig {
+  apiUrl: string
+  httpMethod: HttpMethod
+  authType: AuthType
+  authCredentials: AuthCredentials
+  customHeaders: CustomHeader[]
+  requestBody: string
+}
+
+interface ConfigFormProps {
+  config: TestConfig
+  onChange: (config: TestConfig) => void
+  disabled: boolean
+}
+
+interface ValidationErrors {
+  apiUrl?: string
+  authToken?: string
+  authKey?: string
+  authBasic?: string
+}
+
+const ConfigForm: FC<ConfigFormProps> = ({ config, onChange, disabled }) => {
+  const [errors, setErrors] = React.useState<ValidationErrors>({})
+
+  const validateUrl = (url: string): boolean => {
     try {
       new URL(url)
       return true
@@ -12,43 +51,43 @@ const ConfigForm = ({ config, onChange, disabled }) => {
     }
   }
 
-  const handleFieldChange = (field, value) => {
+  const handleFieldChange = (field: keyof TestConfig, value: string): void => {
     const newConfig = { ...config, [field]: value }
     onChange(newConfig)
-    
+
     // Clear error for this field when user starts typing
-    if (errors[field]) {
+    if (errors[field as keyof ValidationErrors]) {
       setErrors(prev => ({ ...prev, [field]: null }))
     }
   }
 
-  const handleAuthCredentialChange = (key, value) => {
+  const handleAuthCredentialChange = (key: keyof AuthCredentials, value: string): void => {
     const newCredentials = { ...config.authCredentials, [key]: value }
     onChange({ ...config, authCredentials: newCredentials })
   }
 
-  const handleCustomHeaderChange = (index, field, value) => {
+  const handleCustomHeaderChange = (index: number, field: keyof CustomHeader, value: string): void => {
     const newHeaders = [...config.customHeaders]
-    newHeaders[index] = { ...newHeaders[index], [field]: value }
+    newHeaders[index] = { ...newHeaders[index]!, [field]: value }
     onChange({ ...config, customHeaders: newHeaders })
   }
 
-  const addCustomHeader = () => {
+  const addCustomHeader = (): void => {
     onChange({
       ...config,
       customHeaders: [...config.customHeaders, { key: '', value: '' }]
     })
   }
 
-  const removeCustomHeader = (index) => {
+  const removeCustomHeader = (index: number): void => {
     const newHeaders = config.customHeaders.filter((_, i) => i !== index)
     onChange({ ...config, customHeaders: newHeaders })
   }
 
 
   React.useEffect(() => {
-    const newErrors = {}
-    
+    const newErrors: ValidationErrors = {}
+
     if (!config.apiUrl) {
       newErrors.apiUrl = 'API Endpoint URL is required'
     } else if (!validateUrl(config.apiUrl)) {
@@ -69,7 +108,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
     setErrors(newErrors)
   }, [config])
 
-  const renderAuthFields = () => {
+  const renderAuthFields = (): React.ReactElement | null => {
     switch (config.authType) {
       case 'bearer':
         return (
@@ -80,7 +119,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
                 id="bearerToken"
                 type="password"
                 value={config.authCredentials.token || ''}
-                onChange={(e) => handleAuthCredentialChange('token', e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleAuthCredentialChange('token', e.target.value)}
                 placeholder="Enter bearer token"
                 disabled={disabled}
               />
@@ -88,7 +127,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
             </div>
           </div>
         )
-      
+
       case 'apiKey':
         return (
           <div className="conditional-field">
@@ -98,7 +137,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
                 id="apiKey"
                 type="password"
                 value={config.authCredentials.key || ''}
-                onChange={(e) => handleAuthCredentialChange('key', e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleAuthCredentialChange('key', e.target.value)}
                 placeholder="Enter API key"
                 disabled={disabled}
               />
@@ -110,14 +149,14 @@ const ConfigForm = ({ config, onChange, disabled }) => {
                 id="apiKeyHeader"
                 type="text"
                 value={config.authCredentials.headerName || ''}
-                onChange={(e) => handleAuthCredentialChange('headerName', e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleAuthCredentialChange('headerName', e.target.value)}
                 placeholder="X-API-Key (default)"
                 disabled={disabled}
               />
             </div>
           </div>
         )
-      
+
       case 'basic':
         return (
           <div className="conditional-field">
@@ -127,7 +166,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
                 id="basicUsername"
                 type="text"
                 value={config.authCredentials.username || ''}
-                onChange={(e) => handleAuthCredentialChange('username', e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleAuthCredentialChange('username', e.target.value)}
                 placeholder="Enter username"
                 disabled={disabled}
               />
@@ -138,7 +177,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
                 id="basicPassword"
                 type="password"
                 value={config.authCredentials.password || ''}
-                onChange={(e) => handleAuthCredentialChange('password', e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleAuthCredentialChange('password', e.target.value)}
                 placeholder="Enter password"
                 disabled={disabled}
               />
@@ -146,7 +185,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
             {errors.authBasic && <div className="form-error">{errors.authBasic}</div>}
           </div>
         )
-      
+
       default:
         return null
     }
@@ -155,14 +194,14 @@ const ConfigForm = ({ config, onChange, disabled }) => {
   const showRequestBody = ['POST', 'PUT', 'PATCH'].includes(config.httpMethod)
 
   return (
-    <form onSubmit={(e) => e.preventDefault()}>
+    <form onSubmit={(e: FormEvent<HTMLFormElement>) => e.preventDefault()}>
       <div className="form-group required">
         <label htmlFor="apiUrl">API Endpoint URL</label>
         <input
           id="apiUrl"
           type="url"
           value={config.apiUrl}
-          onChange={(e) => handleFieldChange('apiUrl', e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => handleFieldChange('apiUrl', e.target.value)}
           placeholder="https://api.example.com/posts"
           disabled={disabled}
         />
@@ -174,7 +213,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
         <select
           id="httpMethod"
           value={config.httpMethod}
-          onChange={(e) => handleFieldChange('httpMethod', e.target.value)}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => handleFieldChange('httpMethod', e.target.value)}
           disabled={disabled}
         >
           <option value="GET">GET</option>
@@ -190,7 +229,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
         <select
           id="authType"
           value={config.authType}
-          onChange={(e) => handleFieldChange('authType', e.target.value)}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => handleFieldChange('authType', e.target.value)}
           disabled={disabled}
         >
           <option value="none">None</option>
@@ -211,14 +250,14 @@ const ConfigForm = ({ config, onChange, disabled }) => {
                 type="text"
                 placeholder="Header name"
                 value={header.key}
-                onChange={(e) => handleCustomHeaderChange(index, 'key', e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleCustomHeaderChange(index, 'key', e.target.value)}
                 disabled={disabled}
               />
               <input
                 type="text"
                 placeholder="Header value"
                 value={header.value}
-                onChange={(e) => handleCustomHeaderChange(index, 'value', e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleCustomHeaderChange(index, 'value', e.target.value)}
                 disabled={disabled}
               />
               {config.customHeaders.length > 1 && (
@@ -249,7 +288,7 @@ const ConfigForm = ({ config, onChange, disabled }) => {
           <textarea
             id="requestBody"
             value={config.requestBody}
-            onChange={(e) => handleFieldChange('requestBody', e.target.value)}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleFieldChange('requestBody', e.target.value)}
             placeholder='{"data": {"type": "posts", "attributes": {"title": "Example"}}}'
             disabled={disabled}
           />

@@ -1,11 +1,30 @@
 import React from 'react'
+import type { TestConfig, ValidationState } from '../types/validation'
 
-const TestRunner = ({ config, validationState, onStartValidation, onReset }) => {
-  const [formErrors, setFormErrors] = React.useState({})
+interface FormErrors {
+  apiUrl?: string
+  auth?: string
+  requestBody?: string
+}
 
-  const validateConfig = () => {
-    const errors = {}
-    
+interface TestRunnerProps {
+  config: TestConfig
+  validationState: ValidationState
+  onStartValidation: () => void
+  onReset: () => void
+}
+
+const TestRunner: React.FC<TestRunnerProps> = ({
+  config,
+  validationState,
+  onStartValidation,
+  onReset
+}) => {
+  const [formErrors, setFormErrors] = React.useState<FormErrors>({})
+
+  const validateConfig = (): boolean => {
+    const errors: FormErrors = {}
+
     // Check required fields
     if (!config.apiUrl) {
       errors.apiUrl = 'API Endpoint URL is required'
@@ -31,7 +50,7 @@ const TestRunner = ({ config, validationState, onStartValidation, onReset }) => 
     // Validate request body for methods that require it
     if (['POST', 'PUT', 'PATCH'].includes(config.httpMethod) && config.requestBody) {
       try {
-        JSON.parse(config.requestBody)
+        JSON.parse(config.requestBody as string)
       } catch {
         errors.requestBody = 'Request body must be valid JSON'
       }
@@ -41,21 +60,21 @@ const TestRunner = ({ config, validationState, onStartValidation, onReset }) => 
     return Object.keys(errors).length === 0
   }
 
-  const handleStartValidation = () => {
+  const handleStartValidation = (): void => {
     if (validateConfig()) {
       onStartValidation()
     }
   }
 
-  const isFormValid = () => {
-    return config.apiUrl && 
-           (config.authType === 'none' || 
+  const isFormValid = (): boolean => {
+    return Boolean(config.apiUrl &&
+           (config.authType === 'none' ||
             (config.authType === 'bearer' && config.authCredentials.token) ||
             (config.authType === 'apiKey' && config.authCredentials.key) ||
-            (config.authType === 'basic' && config.authCredentials.username && config.authCredentials.password))
+            (config.authType === 'basic' && config.authCredentials.username && config.authCredentials.password)))
   }
 
-  const renderProgressIndicator = () => {
+  const renderProgressIndicator = (): React.ReactNode => {
     if (validationState.isRunning) {
       return (
         <div className="progress-indicator">
@@ -64,7 +83,7 @@ const TestRunner = ({ config, validationState, onStartValidation, onReset }) => 
         </div>
       )
     }
-    
+
     if (validationState.error) {
       return (
         <div className="progress-indicator error">
@@ -72,11 +91,11 @@ const TestRunner = ({ config, validationState, onStartValidation, onReset }) => 
         </div>
       )
     }
-    
+
     if (validationState.results) {
       const { summary } = validationState.results
       const hasFailures = summary.failed > 0
-      
+
       return (
         <div className={`progress-indicator ${hasFailures ? 'error' : 'success'}`}>
           <span>
@@ -86,13 +105,13 @@ const TestRunner = ({ config, validationState, onStartValidation, onReset }) => 
         </div>
       )
     }
-    
+
     return null
   }
 
-  const renderFormErrors = () => {
+  const renderFormErrors = (): React.ReactNode => {
     if (Object.keys(formErrors).length === 0) return null
-    
+
     return (
       <div className="progress-indicator error">
         <div>
@@ -111,7 +130,7 @@ const TestRunner = ({ config, validationState, onStartValidation, onReset }) => 
     <div>
       {renderProgressIndicator()}
       {renderFormErrors()}
-      
+
       <div className="button-group">
         <button
           type="button"
@@ -121,7 +140,7 @@ const TestRunner = ({ config, validationState, onStartValidation, onReset }) => 
         >
           {validationState.isRunning ? 'Validating...' : 'Start Validation'}
         </button>
-        
+
         <button
           type="button"
           className="button secondary"

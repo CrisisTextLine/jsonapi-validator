@@ -1,6 +1,16 @@
+import type { RawValidationResults, ValidationTest } from '../types/validation.js'
 
+interface ValidationState {
+  isRunning: boolean
+  results: RawValidationResults | null
+  error: string | null
+}
 
-const ResultsPanel = ({ validationState }) => {
+interface ResultsPanelProps {
+  validationState: ValidationState
+}
+
+const ResultsPanel = ({ validationState }: ResultsPanelProps) => {
   if (validationState.isRunning) {
     return (
       <div className="results-panel">
@@ -44,7 +54,7 @@ const ResultsPanel = ({ validationState }) => {
   const { results } = validationState
   const { summary, details, timestamp, endpoint, method } = results
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: ValidationTest['status']): string => {
     switch (status) {
       case 'passed': return '✅'
       case 'failed': return '❌'
@@ -53,7 +63,7 @@ const ResultsPanel = ({ validationState }) => {
     }
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: ValidationTest['status']): string => {
     switch (status) {
       case 'passed': return '#4caf50'
       case 'failed': return '#f44336'
@@ -109,8 +119,8 @@ const ResultsPanel = ({ validationState }) => {
                 <span style={{ marginRight: '10px', fontSize: '16px' }}>
                   {getStatusIcon(detail.status)}
                 </span>
-                <span style={{ 
-                  fontWeight: 'bold', 
+                <span style={{
+                  fontWeight: 'bold',
                   color: getStatusColor(detail.status),
                   textTransform: 'uppercase',
                   fontSize: '12px'
@@ -130,10 +140,10 @@ const ResultsPanel = ({ validationState }) => {
       </div>
 
       {/* Additional Information */}
-      <div style={{ 
-        marginTop: '20px', 
-        padding: '15px', 
-        backgroundColor: '#e3f2fd', 
+      <div style={{
+        marginTop: '20px',
+        padding: '15px',
+        backgroundColor: '#e3f2fd',
         borderRadius: '4px',
         fontSize: '14px',
         color: '#1976d2'
