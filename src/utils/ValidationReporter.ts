@@ -1,21 +1,25 @@
 /**
- * ValidationReporter.js
- * 
+ * ValidationReporter.ts
+ *
  * Comprehensive reporting system for JSON:API validation results
  * Provides structured reports with severity levels, location info, and export capabilities
  */
 
+import type { ValidationTest, ValidationSummary } from '../types/validation.js'
+
 /**
- * Severity levels for validation issues
+ * Severity levels for validation issues (as const for literal types)
  */
 export const SEVERITY = {
   ERROR: 'error',
-  WARNING: 'warning', 
+  WARNING: 'warning',
   INFO: 'info'
-}
+} as const
+
+export type SeverityLevel = typeof SEVERITY[keyof typeof SEVERITY]
 
 /**
- * Validation categories for organizing results
+ * Validation categories for organizing results (as const for literal types)
  */
 export const CATEGORIES = {
   DOCUMENT_STRUCTURE: 'Document Structure',
@@ -27,12 +31,115 @@ export const CATEGORIES = {
   PAGINATION: 'Pagination',
   SPARSE_FIELDSETS: 'Sparse Fieldsets',
   REQUEST_FORMAT: 'Request Format'
+} as const
+
+export type CategoryName = typeof CATEGORIES[keyof typeof CATEGORIES]
+
+/**
+ * Issue suggestion interface
+ */
+interface IssueSuggestion {
+  suggestion: string
+  severity: SeverityLevel
+}
+
+/**
+ * Enhanced validation test with additional metadata
+ */
+interface EnhancedValidationTest extends ValidationTest {
+  severity?: SeverityLevel
+}
+
+/**
+ * Section structure for organizing validation results
+ */
+interface ValidationSection {
+  tests: EnhancedValidationTest[]
+  summary: {
+    total: number
+    passed: number
+    failed: number
+    warnings: number
+  }
+}
+
+/**
+ * Severity summary structure
+ */
+interface SeveritySummary {
+  error: number
+  warning: number
+  info: number
+}
+
+/**
+ * Enhanced validation summary with severity breakdown
+ */
+interface EnhancedValidationSummary extends ValidationSummary {
+  severity: SeveritySummary
+}
+
+/**
+ * Overall status type
+ */
+type OverallStatus = 'passed' | 'failed' | 'warning' | 'error'
+
+/**
+ * Report metadata interface
+ */
+interface ReportMetadata {
+  timestamp: string
+  endpoint: string
+  method: string
+  duration?: string
+  status: OverallStatus
+}
+
+/**
+ * Suggestion object interface
+ */
+interface Suggestion {
+  title: string
+  description: string
+  severity: string
+}
+
+/**
+ * Export configuration interface
+ */
+interface ExportConfig {
+  availableFormats: string[]
+  generatedAt: string
+}
+
+/**
+ * Comprehensive validation report interface
+ */
+export interface ComprehensiveReport {
+  metadata: ReportMetadata
+  summary: EnhancedValidationSummary
+  sections: Record<string, ValidationSection>
+  suggestions: Suggestion[]
+  export: ExportConfig
+}
+
+/**
+ * Raw validation results interface (from ValidationService)
+ */
+interface RawValidationResults {
+  timestamp?: string
+  endpoint: string
+  method: string
+  duration?: string
+  status?: 'completed' | 'error'
+  summary?: ValidationSummary
+  details?: ValidationTest[]
 }
 
 /**
  * Common issue suggestions mapping
  */
-const ISSUE_SUGGESTIONS = {
+const ISSUE_SUGGESTIONS: Record<string, IssueSuggestion> = {
   'JSON Parsing': {
     suggestion: 'Ensure the response body contains valid JSON. Check for trailing commas, unescaped quotes, or malformed objects.',
     severity: SEVERITY.ERROR
@@ -69,11 +176,14 @@ const ISSUE_SUGGESTIONS = {
 
 /**
  * Enhances raw validation results with comprehensive reporting structure
- * @param {Object} rawResults - Raw validation results from ValidationService
- * @returns {Object} Enhanced report with structured sections and metadata
+ * @param rawResults - Raw validation results from ValidationService
+ * @returns Enhanced report with structured sections and metadata
  */
-export function createComprehensiveReport(rawResults) {
-  const report = {
+export function createComprehensiveReport(rawResults: RawValidationResults): ComprehensiveReport {
+  const details = rawResults.details || []
+  const summary = rawResults.summary || { total: 0, passed: 0, failed: 0, warnings: 0 }
+
+  const report: ComprehensiveReport = {
     metadata: {
       timestamp: rawResults.timestamp || new Date().toISOString(),
       endpoint: rawResults.endpoint,
@@ -82,11 +192,11 @@ export function createComprehensiveReport(rawResults) {
       status: determineOverallStatus(rawResults)
     },
     summary: {
-      ...rawResults.summary,
-      severity: categorizeBySeverity(rawResults.details || [])
+      ...summary,
+      severity: categorizeBySeverity(details)
     },
-    sections: organizeBySections(rawResults.details || []),
-    suggestions: generateSuggestions(rawResults.details || []),
+    sections: organizeBySections(details),
+    suggestions: generateSuggestions(details),
     export: {
       availableFormats: ['json', 'markdown', 'pdf'],
       generatedAt: new Date().toISOString()
@@ -98,23 +208,23 @@ export function createComprehensiveReport(rawResults) {
 
 /**
  * Determines overall validation status
- * @param {Object} results - Raw validation results
- * @returns {string} Overall status
+ * @param results - Raw validation results
+ * @returns Overall status
  */
-function determineOverallStatus(results) {
+function determineOverallStatus(results: RawValidationResults): OverallStatus {
   if (results.status === 'error') return 'error'
-  if (results.summary?.failed > 0) return 'failed'
-  if (results.summary?.warnings > 0) return 'warning'
+  if (results.summary && results.summary.failed > 0) return 'failed'
+  if (results.summary && results.summary.warnings > 0) return 'warning'
   return 'passed'
 }
 
 /**
  * Categorizes results by severity level
- * @param {Array} details - Array of validation details
- * @returns {Object} Counts by severity level
+ * @param details - Array of validation details
+ * @returns Counts by severity level
  */
-function categorizeBySeverity(details) {
-  const severity = {
+function categorizeBySeverity(details: ValidationTest[]): SeveritySummary {
+  const severity: SeveritySummary = {
     error: 0,
     warning: 0,
     info: 0
@@ -130,10 +240,10 @@ function categorizeBySeverity(details) {
 
 /**
  * Maps validation status to severity level
- * @param {string} status - Validation status (passed, failed, warning)
- * @returns {string} Severity level
+ * @param status - Validation status (passed, failed, warning)
+ * @returns Severity level
  */
-function mapStatusToSeverity(status) {
+function mapStatusToSeverity(status: ValidationTest['status']): SeverityLevel {
   switch (status) {
     case 'failed': return SEVERITY.ERROR
     case 'warning': return SEVERITY.WARNING
@@ -144,37 +254,41 @@ function mapStatusToSeverity(status) {
 
 /**
  * Organizes validation results into logical sections
- * @param {Array} details - Array of validation details
- * @returns {Object} Results organized by category
+ * @param details - Array of validation details
+ * @returns Results organized by category
  */
-function organizeBySections(details) {
-  const sections = {}
+function organizeBySections(details: ValidationTest[]): Record<string, ValidationSection> {
+  const sections: Record<string, ValidationSection> = {}
 
   // Initialize all categories
   Object.values(CATEGORIES).forEach(category => {
     sections[category] = {
       tests: [],
-      summary: { passed: 0, failed: 0, warnings: 0 }
+      summary: { total: 0, passed: 0, failed: 0, warnings: 0 }
     }
   })
 
   details.forEach(detail => {
     const category = categorizeTest(detail.test)
     const enhancedDetail = enhanceDetailWithLocation(detail)
-    
-    sections[category].tests.push(enhancedDetail)
-    
+
+    sections[category]?.tests.push(enhancedDetail)
+
     // Update section summary
-    switch (detail.status) {
-      case 'passed':
-        sections[category].summary.passed++
-        break
-      case 'failed':
-        sections[category].summary.failed++
-        break
-      case 'warning':
-        sections[category].summary.warnings++
-        break
+    const section = sections[category]
+    if (section) {
+      section.summary.total++
+      switch (detail.status) {
+        case 'passed':
+          section.summary.passed++
+          break
+        case 'failed':
+          section.summary.failed++
+          break
+        case 'warning':
+          section.summary.warnings++
+          break
+      }
     }
   })
 
@@ -183,12 +297,12 @@ function organizeBySections(details) {
 
 /**
  * Categorizes a test based on its name
- * @param {string} testName - Name of the validation test
- * @returns {string} Category name
+ * @param testName - Name of the validation test
+ * @returns Category name
  */
-function categorizeTest(testName) {
+function categorizeTest(testName: string): CategoryName {
   const testLower = testName.toLowerCase()
-  
+
   if (testLower.includes('content-type') || testLower.includes('header')) {
     return CATEGORIES.CONTENT_TYPE
   }
@@ -213,63 +327,63 @@ function categorizeTest(testName) {
   if (testLower.includes('document') || testLower.includes('json') || testLower.includes('parsing')) {
     return CATEGORIES.DOCUMENT_STRUCTURE
   }
-  
+
   return CATEGORIES.REQUEST_FORMAT
 }
 
 /**
  * Enhances validation detail with location information
- * @param {Object} detail - Validation detail object
- * @returns {Object} Enhanced detail with location info
+ * @param detail - Validation detail object
+ * @returns Enhanced detail with location info
  */
-function enhanceDetailWithLocation(detail) {
-  const enhanced = { ...detail }
-  
+function enhanceDetailWithLocation(detail: ValidationTest): EnhancedValidationTest {
+  const enhanced: EnhancedValidationTest = { ...detail }
+
   // Add JSON Pointer path if context is available
-  if (detail.context) {
+  if (detail.location) {
     enhanced.location = {
-      jsonPointer: detail.context,
-      description: generateLocationDescription(detail.context)
+      jsonPointer: detail.location.jsonPointer,
+      description: generateLocationDescription(detail.location.jsonPointer)
     }
   }
 
   // Add severity level
   enhanced.severity = mapStatusToSeverity(detail.status)
-  
+
   return enhanced
 }
 
 /**
  * Generates human-readable description of JSON Pointer location
- * @param {string} pointer - JSON Pointer path
- * @returns {string} Human-readable location description
+ * @param pointer - JSON Pointer path
+ * @returns Human-readable location description
  */
-function generateLocationDescription(pointer) {
+function generateLocationDescription(pointer: string): string {
   if (!pointer || pointer === '') return 'Document root'
-  
+
   const parts = pointer.split('/').filter(part => part !== '')
-  const descriptions = []
-  
+  const descriptions: string[] = []
+
   parts.forEach((part) => {
-    if (!isNaN(part)) {
+    if (!isNaN(Number(part))) {
       descriptions.push(`item ${part}`)
     } else {
       descriptions.push(`"${part}" property`)
     }
   })
-  
+
   return descriptions.join(' → ')
 }
 
 /**
  * Generates actionable suggestions based on validation results
- * @param {Array} details - Array of validation details
- * @returns {Array} Array of suggestion objects
+ * @param details - Array of validation details
+ * @returns Array of suggestion objects
  */
-function generateSuggestions(details) {
-  const suggestions = []
-  const seenSuggestions = new Set()
-  
+function generateSuggestions(details: ValidationTest[]): Suggestion[] {
+  const suggestions: Suggestion[] = []
+  const seenSuggestions = new Set<string>()
+
   details.forEach(detail => {
     if (detail.status === 'failed') {
       const suggestion = findSuggestion(detail.test, detail.message)
@@ -279,45 +393,53 @@ function generateSuggestions(details) {
       }
     }
   })
-  
+
   return suggestions
 }
 
 /**
  * Finds relevant suggestion for a validation issue
- * @param {string} testName - Name of the failed test
- * @param {string} message - Error message
- * @returns {Object|null} Suggestion object or null
+ * @param testName - Name of the failed test
+ * @param message - Error message
+ * @returns Suggestion object or null
  */
-function findSuggestion(testName, message) {
+function findSuggestion(testName: string, message: string): Suggestion | null {
   // Try exact match first
-  if (ISSUE_SUGGESTIONS[testName]) {
+  const exactMatch = ISSUE_SUGGESTIONS[testName]
+  if (exactMatch) {
     return {
       title: testName,
-      ...ISSUE_SUGGESTIONS[testName]
+      description: exactMatch.suggestion,
+      severity: exactMatch.severity
     }
   }
-  
+
   // Try partial match
-  for (const [key, suggestion] of Object.entries(ISSUE_SUGGESTIONS)) {
+  for (const [key, issueSuggestion] of Object.entries(ISSUE_SUGGESTIONS)) {
     if (testName.includes(key) || message.toLowerCase().includes(key.toLowerCase())) {
       return {
         title: key,
-        ...suggestion
+        description: issueSuggestion.suggestion,
+        severity: issueSuggestion.severity
       }
     }
   }
-  
+
   return null
 }
 
 /**
- * Exports validation report in specified format
- * @param {Object} report - Comprehensive validation report
- * @param {string} format - Export format ('json', 'markdown', 'pdf')
- * @returns {string|Blob} Exported report content
+ * Export format type
  */
-export function exportReport(report, format) {
+type ExportFormat = 'json' | 'markdown' | 'pdf'
+
+/**
+ * Exports validation report in specified format
+ * @param report - Comprehensive validation report
+ * @param format - Export format ('json', 'markdown', 'pdf')
+ * @returns Exported report content
+ */
+export function exportReport(report: ComprehensiveReport, format: ExportFormat): string {
   switch (format.toLowerCase()) {
     case 'json':
       return exportAsJSON(report)
@@ -332,28 +454,28 @@ export function exportReport(report, format) {
 
 /**
  * Exports report as JSON string
- * @param {Object} report - Validation report
- * @returns {string} JSON string
+ * @param report - Validation report
+ * @returns JSON string
  */
-function exportAsJSON(report) {
+function exportAsJSON(report: ComprehensiveReport): string {
   return JSON.stringify(report, null, 2)
 }
 
 /**
  * Exports report as Markdown string
- * @param {Object} report - Validation report
- * @returns {string} Markdown formatted string
+ * @param report - Validation report
+ * @returns Markdown formatted string
  */
-function exportAsMarkdown(report) {
+function exportAsMarkdown(report: ComprehensiveReport): string {
   let markdown = `# JSON:API Validation Report\n\n`
-  
+
   // Metadata section
   markdown += `## Test Information\n\n`
   markdown += `- **Endpoint**: ${report.metadata.method} ${report.metadata.endpoint}\n`
   markdown += `- **Timestamp**: ${new Date(report.metadata.timestamp).toLocaleString()}\n`
   markdown += `- **Duration**: ${report.metadata.duration}\n`
   markdown += `- **Status**: ${report.metadata.status.toUpperCase()}\n\n`
-  
+
   // Summary section
   markdown += `## Summary\n\n`
   markdown += `| Metric | Count |\n`
@@ -363,43 +485,43 @@ function exportAsMarkdown(report) {
   markdown += `| Failed | ${report.summary.failed} |\n`
   markdown += `| Warnings | ${report.summary.warnings} |\n`
   markdown += `| Errors | ${report.summary.severity.error} |\n\n`
-  
+
   // Sections
   Object.entries(report.sections).forEach(([category, section]) => {
     if (section.tests.length > 0) {
       markdown += `## ${category}\n\n`
-      
+
       section.tests.forEach(test => {
         const icon = getStatusIcon(test.status)
         markdown += `### ${icon} ${test.test}\n\n`
         markdown += `**Status**: ${test.status.toUpperCase()}\n\n`
         markdown += `**Message**: ${test.message}\n\n`
-        
+
         if (test.location) {
           markdown += `**Location**: ${test.location.description} (\`${test.location.jsonPointer}\`)\n\n`
         }
       })
     }
   })
-  
+
   // Suggestions section
   if (report.suggestions.length > 0) {
     markdown += `## Suggestions\n\n`
     report.suggestions.forEach(suggestion => {
       markdown += `### ${suggestion.title}\n\n`
-      markdown += `${suggestion.suggestion}\n\n`
+      markdown += `${suggestion.description}\n\n`
     })
   }
-  
+
   return markdown
 }
 
 /**
  * Exports report as PDF (returns HTML content for PDF generation)
- * @param {Object} report - Validation report
- * @returns {string} HTML content suitable for PDF generation
+ * @param report - Validation report
+ * @returns HTML content suitable for PDF generation
  */
-function exportAsPDF(report) {
+function exportAsPDF(report: ComprehensiveReport): string {
   // For now, return HTML that can be converted to PDF by the browser
   let html = `
 <!DOCTYPE html>
@@ -426,7 +548,7 @@ function exportAsPDF(report) {
     <p><strong>Generated:</strong> ${new Date(report.metadata.timestamp).toLocaleString()}</p>
     <p><strong>Duration:</strong> ${report.metadata.duration}</p>
   </div>
-  
+
   <div class="summary">
     <div class="metric">
       <h3>${report.summary.total}</h3>
@@ -451,7 +573,7 @@ function exportAsPDF(report) {
   Object.entries(report.sections).forEach(([category, section]) => {
     if (section.tests.length > 0) {
       html += `<div class="section"><h2>${category}</h2>`
-      
+
       section.tests.forEach(test => {
         html += `<div class="test ${test.status}">
           <h3>${test.test}</h3>
@@ -460,7 +582,7 @@ function exportAsPDF(report) {
           ${test.location ? `<p><strong>Location:</strong> <span class="location">${test.location.jsonPointer}</span> - ${test.location.description}</p>` : ''}
         </div>`
       })
-      
+
       html += `</div>`
     }
   })
@@ -471,10 +593,10 @@ function exportAsPDF(report) {
 
 /**
  * Gets status icon for display
- * @param {string} status - Test status
- * @returns {string} Status icon
+ * @param status - Test status
+ * @returns Status icon
  */
-function getStatusIcon(status) {
+function getStatusIcon(status: ValidationTest['status']): string {
   switch (status) {
     case 'passed': return '✅'
     case 'failed': return '❌'

@@ -1,13 +1,13 @@
 /**
- * ValidationService.js
- * 
+ * ValidationService.ts
+ *
  * Service that coordinates API requests and validation
  */
 
 import { makeRequest } from '../utils/ApiClient.js'
 import { validateDocument } from '../validators/DocumentValidator.js'
-import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.ts'
-import { validateQueryParameters } from '../validators/QueryParameterValidator.ts'
+import { validateSparseFieldsets, validateFieldsetSyntax } from '../validators/QueryValidator.js'
+import { validateQueryParameters } from '../validators/QueryParameterValidator.js'
 import { validatePagination } from '../validators/PaginationValidator.js'
 import { validateHttpStatus } from '../validators/HttpStatusValidator.js'
 import { validateRequestDocument } from '../validators/RequestValidator.js'
@@ -15,17 +15,65 @@ import { validateJsonApiObjectExtended } from '../validators/JsonApiObjectValida
 import { validateContentNegotiation } from '../validators/ContentNegotiationValidator.js'
 import { validateUrlStructure } from '../validators/UrlStructureValidator.js'
 import { createComprehensiveReport } from '../utils/ValidationReporter.js'
+import type { ValidationTest, ValidationReport, JsonApiDocument } from '../types/validation.js'
+
+/**
+ * Extended test config with optional fields for compatibility
+ */
+export interface ExtendedTestConfig {
+  apiUrl: string
+  httpMethod: string
+  requestBody?: string | object
+  readOnlyFields?: string[]
+  customHeaders?: Record<string, string> | Array<{ key: string; value: string }>
+  authToken?: string
+  authType?: 'none' | 'bearer' | 'apiKey' | 'basic'
+  authCredentials?: {
+    token?: string
+    key?: string
+    username?: string
+    password?: string
+  }
+}
+
+/**
+ * Internal validation results object (before comprehensive report)
+ */
+interface InternalValidationResults {
+  timestamp: string
+  endpoint: string
+  method: string
+  status: 'completed' | 'error'
+  httpStatus?: number
+  contentType?: string
+  error?: string
+  summary: {
+    total: number
+    passed: number
+    failed: number
+    warnings: number
+  }
+  details: ValidationTest[]
+  duration?: string
+}
+
+/**
+ * Query parameters from URL
+ */
+interface QueryParams {
+  [key: string]: string
+}
 
 /**
  * Runs comprehensive JSON:API validation on an endpoint
- * @param {Object} config - Test configuration
- * @returns {Promise<Object>} Validation results
+ * @param config - Test configuration
+ * @returns Validation results
  */
-export async function runValidation(config) {
+export async function runValidation(config: ExtendedTestConfig): Promise<ValidationReport> {
   const startTime = Date.now()
-  
+
   // Initialize results object early to avoid reference errors
-  const results = {
+  const results: InternalValidationResults = {
     timestamp: new Date().toISOString(),
     endpoint: config.apiUrl,
     method: config.httpMethod,
@@ -38,10 +86,10 @@ export async function runValidation(config) {
     },
     details: []
   }
-  
+
   try {
     // Extract query parameters from URL for validation
-    let queryParams = {}
+    let queryParams: QueryParams = {}
     try {
       const url = new URL(config.apiUrl)
       queryParams = Object.fromEntries(url.searchParams.entries())
@@ -51,10 +99,10 @@ export async function runValidation(config) {
 
     // Step 1: Validate query parameter syntax (before making request)
     const queryValidation = validateFieldsetSyntax(queryParams)
-    
+
     // Step 3: Validate URL structure
     const urlValidation = validateUrlStructure(config.apiUrl)
-    
+
     // Add URL structure validation results
     results.details.push(...urlValidation.details)
     urlValidation.errors.forEach(error => {
@@ -78,37 +126,35 @@ export async function runValidation(config) {
         results.summary.passed++
       }
     })
-    
+
     // Step 4: Validate request body if present
     // Note: Currently only validates for POST/PATCH with request body
     // GET requests don't have request bodies to validate
     if (['POST', 'PUT', 'PATCH'].includes(config.httpMethod) && config.requestBody) {
       try {
-        const requestBody = typeof config.requestBody === 'string' 
-          ? JSON.parse(config.requestBody) 
+        const requestBody = typeof config.requestBody === 'string'
+          ? JSON.parse(config.requestBody)
           : config.requestBody
-        
+
         const requestValidation = validateRequestDocument(requestBody, config.httpMethod, {
           readOnlyFields: config.readOnlyFields || []
         })
-        
+
         // Add request validation results
         results.details.push(...requestValidation.details)
-        requestValidation.errors.forEach(error => {
+        requestValidation.errors.forEach((error: any) => {
           results.details.push({
             test: error.test,
             status: 'failed',
-            message: error.message,
-            context: error.context
+            message: error.message
           })
           results.summary.failed++
         })
-        requestValidation.warnings.forEach(warning => {
+        requestValidation.warnings.forEach((warning: any) => {
           results.details.push({
             test: warning.test,
             status: 'warning',
-            message: warning.message,
-            context: warning.context
+            message: warning.message
           })
           results.summary.warnings++
         })
@@ -118,20 +164,21 @@ export async function runValidation(config) {
           }
         })
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         results.details.push({
           test: 'Request Body Parsing',
           status: 'failed',
-          message: `Failed to parse request body as JSON: ${error.message}`
+          message: `Failed to parse request body as JSON: ${errorMessage}`
         })
         results.summary.failed++
       }
     }
 
     // Step 5: Make the API request
-    const response = await makeRequest(config)
-    
+    const response = await makeRequest(config as any)
+
     if (!response.success) {
-      return {
+      const errorResults: InternalValidationResults = {
         timestamp: new Date().toISOString(),
         endpoint: config.apiUrl,
         method: config.httpMethod,
@@ -146,9 +193,10 @@ export async function runValidation(config) {
         details: [{
           test: 'HTTP Request',
           status: 'failed',
-          message: response.error
+          message: response.error || 'Unknown error'
         }]
       }
+      return createComprehensiveReport(errorResults) as ValidationReport
     }
 
     // Update results with response information after successful request
@@ -184,7 +232,7 @@ export async function runValidation(config) {
       validateContentType: true,
       validateAccept: false // We validate the response Content-Type, not request Accept
     })
-    
+
     // Add content negotiation validation results
     results.details.push(...contentNegotiationValidation.details)
     contentNegotiationValidation.errors.forEach(error => {
@@ -219,7 +267,7 @@ export async function runValidation(config) {
       results.summary.failed++
     } else {
       results.details.push({
-        test: 'JSON Parsing', 
+        test: 'JSON Parsing',
         status: 'passed',
         message: 'Response is valid JSON'
       })
@@ -227,11 +275,11 @@ export async function runValidation(config) {
     }
 
     // Step 8: Validate HTTP status code
-    const statusValidation = validateHttpStatus(response.status, config.httpMethod, response.data)
-    
+    const statusValidation = validateHttpStatus(response.status, config.httpMethod, response.data as JsonApiDocument | null)
+
     // Add HTTP status validation results
     results.details.push(...statusValidation.details)
-    
+
     // Add any errors
     statusValidation.errors.forEach(error => {
       results.details.push({
@@ -261,10 +309,10 @@ export async function runValidation(config) {
 
     // Step 9: Validate query parameters
     const queryParamValidation = validateQueryParameters(config.apiUrl, response.data)
-    
-    // Add query parameter validation results  
+
+    // Add query parameter validation results
     results.details.push(...queryParamValidation.details)
-    
+
     // Add any errors
     queryParamValidation.errors.forEach(error => {
       results.details.push({
@@ -295,10 +343,10 @@ export async function runValidation(config) {
     // Step 10: Validate document structure (if JSON parsed successfully)
     if (!response.parseError && response.data !== null) {
       const documentValidation = validateDocument(response.data)
-      
+
       // Add document validation results
       results.details.push(...documentValidation.details)
-      
+
       // Add any errors
       documentValidation.errors.forEach(error => {
         results.details.push({
@@ -309,7 +357,7 @@ export async function runValidation(config) {
         results.summary.failed++
       })
 
-      // Add any warnings  
+      // Add any warnings
       documentValidation.warnings.forEach(warning => {
         results.details.push({
           test: warning.test,
@@ -327,9 +375,10 @@ export async function runValidation(config) {
       })
 
       // Step 10b: Enhanced JSON:API object validation
-      if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'jsonapi')) {
-        const jsonApiObjectValidation = validateJsonApiObjectExtended(response.data.jsonapi)
-        
+      if (response.data && typeof response.data === 'object' && response.data !== null && 'jsonapi' in response.data) {
+        const jsonApiData = response.data as JsonApiDocument
+        const jsonApiObjectValidation = validateJsonApiObjectExtended(jsonApiData.jsonapi)
+
         // Add JSON:API object validation results
         results.details.push(...jsonApiObjectValidation.details)
         jsonApiObjectValidation.errors.forEach(error => {
@@ -358,28 +407,26 @@ export async function runValidation(config) {
       // Step 11: Validate sparse fieldsets (if response has data and query parameters exist)
       if (response.data && Object.keys(queryParams).length > 0) {
         const fieldsetValidation = validateSparseFieldsets(response.data, queryParams)
-        
+
         // Add sparse fieldset validation results
         results.details.push(...fieldsetValidation.details)
-        
+
         // Add any errors
-        fieldsetValidation.errors.forEach(error => {
+        fieldsetValidation.errors.forEach((error: any) => {
           results.details.push({
             test: error.test,
             status: 'failed',
-            message: error.message,
-            context: error.context
+            message: error.message
           })
           results.summary.failed++
         })
 
-        // Add any warnings  
-        fieldsetValidation.warnings.forEach(warning => {
+        // Add any warnings
+        fieldsetValidation.warnings.forEach((warning: any) => {
           results.details.push({
             test: warning.test,
             status: 'warning',
-            message: warning.message,
-            context: warning.context
+            message: warning.message
           })
           results.summary.warnings++
         })
@@ -392,31 +439,30 @@ export async function runValidation(config) {
         })
       }
 
-      // Step 12: Validate pagination (if response has data array)  
+      // Step 12: Validate pagination (if response has data array)
       if (response.data && Array.isArray(response.data)) {
         const paginationValidation = validatePagination(response.data, config.apiUrl, queryParams)
-        
-        // Add pagination validation results
-        results.details.push(...paginationValidation.details)
-        
+
+        // Add pagination validation results (filter out 'skipped' status items)
+        const validDetails = paginationValidation.details.filter((d: any) => d.status !== 'skipped') as ValidationTest[]
+        results.details.push(...validDetails)
+
         // Add any errors
-        paginationValidation.errors.forEach(error => {
+        paginationValidation.errors.forEach((error: any) => {
           results.details.push({
             test: error.test,
             status: 'failed',
-            message: error.message,
-            context: error.context
+            message: error.message
           })
           results.summary.failed++
         })
 
-        // Add any warnings  
-        paginationValidation.warnings.forEach(warning => {
+        // Add any warnings
+        paginationValidation.warnings.forEach((warning: any) => {
           results.details.push({
             test: warning.test,
             status: 'warning',
-            message: warning.message,
-            context: warning.context
+            message: warning.message
           })
           results.summary.warnings++
         })
@@ -438,17 +484,18 @@ export async function runValidation(config) {
     results.duration = `${duration}ms`
 
     // Create comprehensive report
-    const comprehensiveReport = createComprehensiveReport(results)
+    const comprehensiveReport = createComprehensiveReport(results) as ValidationReport
 
     return comprehensiveReport
 
   } catch (error) {
-    const errorResults = {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorResults: InternalValidationResults = {
       timestamp: new Date().toISOString(),
       endpoint: config.apiUrl,
       method: config.httpMethod,
       status: 'error',
-      error: `Validation failed: ${error.message}`,
+      error: `Validation failed: ${errorMessage}`,
       summary: {
         total: 1,
         passed: 0,
@@ -458,11 +505,11 @@ export async function runValidation(config) {
       details: [{
         test: 'Validation Process',
         status: 'failed',
-        message: error.message
+        message: errorMessage
       }]
     }
 
     // Create comprehensive report for error case too
-    return createComprehensiveReport(errorResults)
+    return createComprehensiveReport(errorResults) as ValidationReport
   }
 }
