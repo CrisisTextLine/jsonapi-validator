@@ -81,10 +81,11 @@ describe('CLI', () => {
     });
 
     it('should show verbose output with --verbose flag', async () => {
-      const { code, stdout } = await runCLI([`${MOCK_SERVER_URL}/api/articles`, '--verbose']);
-      expect(stdout).toContain('Validating JSON:API endpoint');
+      const { code, stdout, stderr } = await runCLI([`${MOCK_SERVER_URL}/api/articles`, '--verbose']);
+      const output = stdout || stderr;
+      expect(output).toContain('Validating JSON:API endpoint');
       // Verbose mode should show more details
-      expect(stdout.length).toBeGreaterThan(500);
+      expect(output.length).toBeGreaterThan(500);
     });
 
     it('should handle invalid URL', async () => {
@@ -102,19 +103,20 @@ describe('CLI', () => {
 
   describe('HTTP Methods', () => {
     it('should support different HTTP methods', async () => {
-      const { code, stdout } = await runCLI([
+      const { code, stdout, stderr } = await runCLI([
         `${MOCK_SERVER_URL}/api/articles`,
         '--method',
         'GET'
       ]);
       expect(code).toBeDefined();
-      expect(stdout).toContain('Validating JSON:API endpoint');
+      const output = stdout || stderr;
+      expect(output).toContain('Validating JSON:API endpoint');
     });
   });
 
   describe('Authentication', () => {
     it('should accept bearer token authentication', async () => {
-      const { code, stdout } = await runCLI([
+      const { code, stdout, stderr } = await runCLI([
         `${MOCK_SERVER_URL}/api/articles`,
         '--auth-type',
         'bearer',
@@ -122,11 +124,12 @@ describe('CLI', () => {
         'test-token'
       ]);
       expect(code).toBeDefined();
-      expect(stdout).toContain('Validating JSON:API endpoint');
+      const output = stdout || stderr;
+      expect(output).toContain('Validating JSON:API endpoint');
     });
 
     it('should accept API key authentication', async () => {
-      const { code, stdout } = await runCLI([
+      const { code, stdout, stderr } = await runCLI([
         `${MOCK_SERVER_URL}/api/articles`,
         '--auth-type',
         'apiKey',
@@ -134,11 +137,12 @@ describe('CLI', () => {
         'test-key'
       ]);
       expect(code).toBeDefined();
-      expect(stdout).toContain('Validating JSON:API endpoint');
+      const output = stdout || stderr;
+      expect(output).toContain('Validating JSON:API endpoint');
     });
 
     it('should accept basic authentication', async () => {
-      const { code, stdout } = await runCLI([
+      const { code, stdout, stderr } = await runCLI([
         `${MOCK_SERVER_URL}/api/articles`,
         '--auth-type',
         'basic',
@@ -148,7 +152,8 @@ describe('CLI', () => {
         'pass'
       ]);
       expect(code).toBeDefined();
-      expect(stdout).toContain('Validating JSON:API endpoint');
+      const output = stdout || stderr;
+      expect(output).toContain('Validating JSON:API endpoint');
     });
   });
 

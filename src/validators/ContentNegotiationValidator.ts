@@ -1,20 +1,56 @@
 /**
- * ContentNegotiationValidator.js
- * 
+ * ContentNegotiationValidator.ts
+ *
  * Validates JSON:API v1.1 content negotiation compliance including media type parameters.
  * Based on specification: https://jsonapi.org/format/1.1/#content-negotiation
  */
 
 import { isValidUrl } from '../utils/UrlValidator.js'
 
+interface ValidationError {
+  test: string
+  message: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning'
+  message: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
+interface ContentNegotiationOptions {
+  validateContentType?: boolean
+  validateAccept?: boolean
+}
+
+interface ParsedMediaType {
+  type: string
+  parameters: Record<string, string>
+}
+
 /**
  * Validates JSON:API content negotiation headers and media types
- * @param {Object} headers - Request or response headers
- * @param {Object} options - Validation options
- * @returns {Object} Validation result with success/failure and details
+ * @param headers - Request or response headers
+ * @param options - Validation options
+ * @returns Validation result with success/failure and details
  */
-export function validateContentNegotiation(headers, options = {}) {
-  const results = {
+export function validateContentNegotiation(
+  headers: Record<string, string>,
+  options: ContentNegotiationOptions = {}
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -38,11 +74,11 @@ export function validateContentNegotiation(headers, options = {}) {
 
 /**
  * Validates Content-Type header for JSON:API compliance
- * @param {string} contentType - Content-Type header value
- * @returns {Object} Validation result
+ * @param contentType - Content-Type header value
+ * @returns Validation result
  */
-export function validateContentTypeHeader(contentType) {
-  const results = {
+export function validateContentTypeHeader(contentType: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -93,11 +129,11 @@ export function validateContentTypeHeader(contentType) {
 
 /**
  * Validates Accept header for JSON:API compliance
- * @param {string} accept - Accept header value
- * @returns {Object} Validation result
+ * @param accept - Accept header value
+ * @returns Validation result
  */
-export function validateAcceptHeader(accept) {
-  const results = {
+export function validateAcceptHeader(accept: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -115,7 +151,7 @@ export function validateAcceptHeader(accept) {
 
   // Parse Accept header (can contain multiple media types)
   const mediaTypes = parseAcceptHeader(accept)
-  
+
   if (mediaTypes.length === 0) {
     results.valid = false
     results.errors.push({
@@ -126,9 +162,9 @@ export function validateAcceptHeader(accept) {
   }
 
   // Check if JSON:API media type is accepted
-  const jsonApiTypes = mediaTypes.filter(mt => 
-    mt.type === 'application/vnd.api+json' || 
-    mt.type === 'application/*' || 
+  const jsonApiTypes = mediaTypes.filter(mt =>
+    mt.type === 'application/vnd.api+json' ||
+    mt.type === 'application/*' ||
     mt.type === '*/*'
   )
 
@@ -160,12 +196,15 @@ export function validateAcceptHeader(accept) {
 
 /**
  * Validates media type parameters for JSON:API compliance
- * @param {Object} parameters - Parsed media type parameters
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param parameters - Parsed media type parameters
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateMediaTypeParameters(parameters, context) {
-  const results = {
+function validateMediaTypeParameters(
+  parameters: Record<string, string>,
+  context: string
+): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -218,14 +257,15 @@ function validateMediaTypeParameters(parameters, context) {
 
 /**
  * Validates 'ext' parameter in media type
- * @param {string} ext - Extension parameter value
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param ext - Extension parameter value
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateExtParameter(ext, context) {
-  const results = {
+function validateExtParameter(ext: string, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -240,7 +280,7 @@ function validateExtParameter(ext, context) {
 
   // ext parameter should be a space-separated list of extension URLs
   const extensions = ext.split(/\s+/).filter(e => e.length > 0)
-  
+
   if (extensions.length === 0) {
     results.valid = false
     results.errors.push({
@@ -251,7 +291,7 @@ function validateExtParameter(ext, context) {
   }
 
   // Validate each extension
-  const invalidExtensions = []
+  const invalidExtensions: string[] = []
   extensions.forEach(extension => {
     if (!isValidExtensionUrl(extension)) {
       invalidExtensions.push(extension)
@@ -277,14 +317,15 @@ function validateExtParameter(ext, context) {
 
 /**
  * Validates 'profile' parameter in media type
- * @param {string} profile - Profile parameter value
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param profile - Profile parameter value
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateProfileParameter(profile, context) {
-  const results = {
+function validateProfileParameter(profile: string, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -299,7 +340,7 @@ function validateProfileParameter(profile, context) {
 
   // profile parameter should be a space-separated list of profile URLs
   const profiles = profile.split(/\s+/).filter(p => p.length > 0)
-  
+
   if (profiles.length === 0) {
     results.valid = false
     results.errors.push({
@@ -310,7 +351,7 @@ function validateProfileParameter(profile, context) {
   }
 
   // Validate each profile URL
-  const invalidProfiles = []
+  const invalidProfiles: string[] = []
   profiles.forEach(profileUrl => {
     if (!isValidUrl(profileUrl)) {
       invalidProfiles.push(profileUrl)
@@ -336,34 +377,36 @@ function validateProfileParameter(profile, context) {
 
 /**
  * Parses a media type string into type and parameters
- * @param {string} mediaType - Media type string to parse
- * @returns {Object|null} Parsed media type or null if invalid
+ * @param mediaType - Media type string to parse
+ * @returns Parsed media type or null if invalid
  */
-function parseMediaType(mediaType) {
+function parseMediaType(mediaType: string): ParsedMediaType | null {
   if (!mediaType || typeof mediaType !== 'string') {
     return null
   }
 
   const parts = mediaType.trim().split(';')
-  const type = parts[0].trim()
-  
+  const type = parts[0]?.trim()
+
   if (!type) {
     return null
   }
 
-  const parameters = {}
-  
+  const parameters: Record<string, string> = {}
+
   for (let i = 1; i < parts.length; i++) {
-    const param = parts[i].trim()
+    const param = parts[i]?.trim()
+    if (!param) continue
+
     const equalIndex = param.indexOf('=')
-    
+
     if (equalIndex === -1) {
       continue // Invalid parameter format, skip
     }
-    
+
     const key = param.substring(0, equalIndex).trim()
     const value = param.substring(equalIndex + 1).trim()
-    
+
     if (key && value) {
       // Remove quotes if present
       parameters[key] = value.replace(/^"(.*)"$/, '$1')
@@ -375,10 +418,10 @@ function parseMediaType(mediaType) {
 
 /**
  * Parses Accept header into array of media types
- * @param {string} accept - Accept header value
- * @returns {Array} Array of parsed media types
+ * @param accept - Accept header value
+ * @returns Array of parsed media types
  */
-function parseAcceptHeader(accept) {
+function parseAcceptHeader(accept: string): ParsedMediaType[] {
   if (!accept || typeof accept !== 'string') {
     return []
   }
@@ -386,15 +429,15 @@ function parseAcceptHeader(accept) {
   return accept.split(',').map(mediaType => {
     const parsed = parseMediaType(mediaType.trim())
     return parsed
-  }).filter(Boolean)
+  }).filter((parsed): parsed is ParsedMediaType => parsed !== null)
 }
 
 /**
  * Validates if a string is a valid extension URL
- * @param {string} url - URL to validate
- * @returns {boolean} True if valid extension URL
+ * @param url - URL to validate
+ * @returns True if valid extension URL
  */
-function isValidExtensionUrl(url) {
+function isValidExtensionUrl(url: string): boolean {
   // Extension URLs should be valid URLs
   try {
     new URL(url)
@@ -406,14 +449,14 @@ function isValidExtensionUrl(url) {
 
 /**
  * Merges validation results
- * @param {Object} target - Target results object
- * @param {Object} source - Source results object
+ * @param target - Target results object
+ * @param source - Source results object
  */
-function mergeResults(target, source) {
+function mergeResults(target: ValidationResult, source: ValidationResult): void {
   if (!source.valid) {
     target.valid = false
   }
-  
+
   target.errors.push(...source.errors)
   target.warnings.push(...source.warnings)
   target.details.push(...source.details)
