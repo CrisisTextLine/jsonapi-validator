@@ -1,23 +1,52 @@
 /**
- * ResourceValidator.js
- * 
+ * ResourceValidator.ts
+ *
  * Validates JSON:API v1.1 resource object structure compliance.
  * Based on specification: https://jsonapi.org/format/1.1/#document-resource-objects
  */
 
 import { isValidUrl, getUrlValidationError } from '../utils/UrlValidator.js'
 
+interface ValidationError {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning'
+  message: string
+  context?: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
+interface ResourceValidationOptions {
+  allowMissingId?: boolean
+  context?: string
+}
+
 /**
  * Validates a single resource object for JSON:API compliance
- * @param {any} resource - The resource object to validate
- * @param {Object} options - Validation options
- * @param {boolean} options.allowMissingId - Whether to allow resources without id (client-generated)
- * @param {string} options.context - Context for error messages (e.g., "data[0]", "included[1]")
- * @returns {Object} Validation result with success/failure and details
+ * @param resource - The resource object to validate
+ * @param options - Validation options
+ * @returns Validation result with success/failure and details
  */
-export function validateResourceObject(resource, options = {}) {
+export function validateResourceObject(resource: unknown, options: ResourceValidationOptions = {}): ValidationResult {
   const { allowMissingId = false, context = 'resource' } = options
-  const results = {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -45,8 +74,10 @@ export function validateResourceObject(resource, options = {}) {
     return results
   }
 
+  const resourceObj = resource as Record<string, unknown>
+
   // Step 2: Validate required 'type' member
-  const typeValidation = validateTypeMember(resource.type, context)
+  const typeValidation = validateTypeMember(resourceObj.type, context)
   results.details.push(...typeValidation.details)
   if (!typeValidation.valid) {
     results.valid = false
@@ -54,32 +85,32 @@ export function validateResourceObject(resource, options = {}) {
   }
 
   // Step 3: Validate required 'id' member (unless allowMissingId is true)
-  const idValidation = validateIdMember(resource.id, context, allowMissingId)
+  const idValidation = validateIdMember(resourceObj.id, context, allowMissingId)
   results.details.push(...idValidation.details)
   if (!idValidation.valid) {
     results.valid = false
     results.errors.push(...idValidation.errors)
   }
-  if (idValidation.warnings) {
+  if (idValidation.warnings.length > 0) {
     results.warnings.push(...idValidation.warnings)
   }
 
   // Step 4: Validate optional 'attributes' member
-  if (Object.prototype.hasOwnProperty.call(resource, 'attributes')) {
-    const attributesValidation = validateAttributesMember(resource.attributes, context)
+  if (Object.prototype.hasOwnProperty.call(resourceObj, 'attributes')) {
+    const attributesValidation = validateAttributesMember(resourceObj.attributes, context)
     results.details.push(...attributesValidation.details)
     if (!attributesValidation.valid) {
       results.valid = false
       results.errors.push(...attributesValidation.errors)
     }
-    if (attributesValidation.warnings) {
+    if (attributesValidation.warnings.length > 0) {
       results.warnings.push(...attributesValidation.warnings)
     }
   }
 
   // Step 5: Validate optional 'relationships' member
-  if (Object.prototype.hasOwnProperty.call(resource, 'relationships')) {
-    const relationshipsValidation = validateRelationshipsMember(resource.relationships, context)
+  if (Object.prototype.hasOwnProperty.call(resourceObj, 'relationships')) {
+    const relationshipsValidation = validateRelationshipsMember(resourceObj.relationships, context)
     results.details.push(...relationshipsValidation.details)
     if (!relationshipsValidation.valid) {
       results.valid = false
@@ -88,8 +119,8 @@ export function validateResourceObject(resource, options = {}) {
   }
 
   // Step 6: Validate optional 'links' member
-  if (Object.prototype.hasOwnProperty.call(resource, 'links')) {
-    const linksValidation = validateResourceLinksMember(resource.links, context)
+  if (Object.prototype.hasOwnProperty.call(resourceObj, 'links')) {
+    const linksValidation = validateResourceLinksMember(resourceObj.links, context)
     results.details.push(...linksValidation.details)
     if (!linksValidation.valid) {
       results.valid = false
@@ -98,8 +129,8 @@ export function validateResourceObject(resource, options = {}) {
   }
 
   // Step 7: Validate optional 'meta' member
-  if (Object.prototype.hasOwnProperty.call(resource, 'meta')) {
-    const metaValidation = validateMetaMember(resource.meta, context)
+  if (Object.prototype.hasOwnProperty.call(resourceObj, 'meta')) {
+    const metaValidation = validateMetaMember(resourceObj.meta, context)
     results.details.push(...metaValidation.details)
     if (!metaValidation.valid) {
       results.valid = false
@@ -108,13 +139,13 @@ export function validateResourceObject(resource, options = {}) {
   }
 
   // Step 8: Check for reserved/forbidden member names
-  const memberValidation = validateMemberNames(resource, context)
+  const memberValidation = validateMemberNames(resourceObj, context)
   results.details.push(...memberValidation.details)
   if (!memberValidation.valid) {
     results.valid = false
     results.errors.push(...memberValidation.errors)
   }
-  if (memberValidation.warnings) {
+  if (memberValidation.warnings.length > 0) {
     results.warnings.push(...memberValidation.warnings)
   }
 
@@ -123,14 +154,15 @@ export function validateResourceObject(resource, options = {}) {
 
 /**
  * Validates the 'type' member of a resource object
- * @param {any} type - The type value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param type - The type value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateTypeMember(type, context) {
-  const results = {
+function validateTypeMember(type: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -185,13 +217,13 @@ function validateTypeMember(type, context) {
 
 /**
  * Validates the 'id' member of a resource object
- * @param {any} id - The id value to validate
- * @param {string} context - Context for error messages
- * @param {boolean} allowMissingId - Whether missing id is allowed
- * @returns {Object} Validation result
+ * @param id - The id value to validate
+ * @param context - Context for error messages
+ * @param allowMissingId - Whether missing id is allowed
+ * @returns Validation result
  */
-function validateIdMember(id, context, allowMissingId) {
-  const results = {
+function validateIdMember(id: unknown, context: string, allowMissingId: boolean): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -248,12 +280,12 @@ function validateIdMember(id, context, allowMissingId) {
 
 /**
  * Validates the 'attributes' member of a resource object
- * @param {any} attributes - The attributes object to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param attributes - The attributes object to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateAttributesMember(attributes, context) {
-  const results = {
+function validateAttributesMember(attributes: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -270,8 +302,9 @@ function validateAttributesMember(attributes, context) {
     return results
   }
 
-  const attributeKeys = Object.keys(attributes)
-  
+  const attributesObj = attributes as Record<string, unknown>
+  const attributeKeys = Object.keys(attributesObj)
+
   if (attributeKeys.length === 0) {
     results.warnings.push({
       test: 'Resource Attributes Member',
@@ -293,7 +326,7 @@ function validateAttributesMember(attributes, context) {
   // Check for forbidden members (type, id) in attributes
   const forbiddenMembers = ['type', 'id']
   const foundForbidden = attributeKeys.filter(key => forbiddenMembers.includes(key))
-  
+
   if (foundForbidden.length > 0) {
     results.valid = false
     results.errors.push({
@@ -305,11 +338,12 @@ function validateAttributesMember(attributes, context) {
 
   // Check for relationship-like structures in attributes (common mistake)
   for (const key of attributeKeys) {
-    const value = attributes[key]
+    const value = attributesObj[key]
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      if (Object.prototype.hasOwnProperty.call(value, 'data') || 
-          Object.prototype.hasOwnProperty.call(value, 'links') ||
-          Object.prototype.hasOwnProperty.call(value, 'meta')) {
+      const valueObj = value as Record<string, unknown>
+      if (Object.prototype.hasOwnProperty.call(valueObj, 'data') ||
+          Object.prototype.hasOwnProperty.call(valueObj, 'links') ||
+          Object.prototype.hasOwnProperty.call(valueObj, 'meta')) {
         results.valid = false
         results.errors.push({
           test: 'Resource Attributes Relationship Structure',
@@ -334,14 +368,15 @@ function validateAttributesMember(attributes, context) {
 
 /**
  * Validates the 'relationships' member of a resource object
- * @param {any} relationships - The relationships object to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param relationships - The relationships object to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateRelationshipsMember(relationships, context) {
-  const results = {
+function validateRelationshipsMember(relationships: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -355,8 +390,9 @@ function validateRelationshipsMember(relationships, context) {
     return results
   }
 
-  const relationshipKeys = Object.keys(relationships)
-  
+  const relationshipsObj = relationships as Record<string, unknown>
+  const relationshipKeys = Object.keys(relationshipsObj)
+
   if (relationshipKeys.length === 0) {
     results.errors.push({
       test: 'Resource Relationships Member',
@@ -377,9 +413,9 @@ function validateRelationshipsMember(relationships, context) {
       results.errors.push(...nameValidation.errors)
     }
 
-    const relationship = relationships[relationshipName]
+    const relationship = relationshipsObj[relationshipName]
     const relationshipValidation = validateRelationshipObject(relationship, `${context}.relationships.${relationshipName}`)
-    
+
     results.details.push(...relationshipValidation.details)
     if (!relationshipValidation.valid) {
       allRelationshipsValid = false
@@ -404,14 +440,15 @@ function validateRelationshipsMember(relationships, context) {
 
 /**
  * Validates a single relationship object
- * @param {any} relationship - The relationship object to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param relationship - The relationship object to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateRelationshipObject(relationship, context) {
-  const results = {
+function validateRelationshipObject(relationship: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -425,10 +462,12 @@ function validateRelationshipObject(relationship, context) {
     return results
   }
 
+  const relationshipObj = relationship as Record<string, unknown>
+
   // A relationship object must contain at least one of: data, links, meta
-  const hasData = Object.prototype.hasOwnProperty.call(relationship, 'data')
-  const hasLinks = Object.prototype.hasOwnProperty.call(relationship, 'links')
-  const hasMeta = Object.prototype.hasOwnProperty.call(relationship, 'meta')
+  const hasData = Object.prototype.hasOwnProperty.call(relationshipObj, 'data')
+  const hasLinks = Object.prototype.hasOwnProperty.call(relationshipObj, 'links')
+  const hasMeta = Object.prototype.hasOwnProperty.call(relationshipObj, 'meta')
 
   if (!hasData && !hasLinks && !hasMeta) {
     results.valid = false
@@ -442,7 +481,7 @@ function validateRelationshipObject(relationship, context) {
 
   // Validate data member if present
   if (hasData) {
-    const dataValidation = validateRelationshipData(relationship.data, context)
+    const dataValidation = validateRelationshipData(relationshipObj.data, context)
     results.details.push(...dataValidation.details)
     if (!dataValidation.valid) {
       results.valid = false
@@ -452,7 +491,7 @@ function validateRelationshipObject(relationship, context) {
 
   // Validate links member if present
   if (hasLinks) {
-    const linksValidation = validateRelationshipLinks(relationship.links, context)
+    const linksValidation = validateRelationshipLinks(relationshipObj.links, context)
     results.details.push(...linksValidation.details)
     if (!linksValidation.valid) {
       results.valid = false
@@ -462,7 +501,7 @@ function validateRelationshipObject(relationship, context) {
 
   // Validate meta member if present
   if (hasMeta) {
-    if (typeof relationship.meta !== 'object' || relationship.meta === null) {
+    if (typeof relationshipObj.meta !== 'object' || relationshipObj.meta === null) {
       results.valid = false
       results.errors.push({
         test: 'Relationship Meta Structure',
@@ -486,14 +525,15 @@ function validateRelationshipObject(relationship, context) {
 
 /**
  * Validates relationship data (resource identifiers)
- * @param {any} data - The relationship data to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param data - The relationship data to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateRelationshipData(data, context) {
-  const results = {
+function validateRelationshipData(data: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -519,7 +559,7 @@ function validateRelationshipData(data, context) {
         results.errors.push(...identifierValidation.errors)
       }
     }
-    
+
     if (results.valid) {
       results.details.push({
         test: 'Relationship Data Structure',
@@ -543,14 +583,15 @@ function validateRelationshipData(data, context) {
 
 /**
  * Validates a resource identifier object
- * @param {any} identifier - The resource identifier to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param identifier - The resource identifier to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateResourceIdentifier(identifier, context) {
-  const results = {
+function validateResourceIdentifier(identifier: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -564,15 +605,17 @@ function validateResourceIdentifier(identifier, context) {
     return results
   }
 
+  const identifierObj = identifier as Record<string, unknown>
+
   // Resource identifier must have type and id
-  if (!Object.prototype.hasOwnProperty.call(identifier, 'type')) {
+  if (!Object.prototype.hasOwnProperty.call(identifierObj, 'type')) {
     results.valid = false
     results.errors.push({
       test: 'Resource Identifier Type',
       context,
       message: 'Resource identifier must have a "type" member'
     })
-  } else if (typeof identifier.type !== 'string' || identifier.type.length === 0) {
+  } else if (typeof identifierObj.type !== 'string' || identifierObj.type.length === 0) {
     results.valid = false
     results.errors.push({
       test: 'Resource Identifier Type',
@@ -581,14 +624,14 @@ function validateResourceIdentifier(identifier, context) {
     })
   }
 
-  if (!Object.prototype.hasOwnProperty.call(identifier, 'id')) {
+  if (!Object.prototype.hasOwnProperty.call(identifierObj, 'id')) {
     results.valid = false
     results.errors.push({
       test: 'Resource Identifier ID',
       context,
       message: 'Resource identifier must have an "id" member'
     })
-  } else if (typeof identifier.id !== 'string' || identifier.id.length === 0) {
+  } else if (typeof identifierObj.id !== 'string' || identifierObj.id.length === 0) {
     results.valid = false
     results.errors.push({
       test: 'Resource Identifier ID',
@@ -602,7 +645,7 @@ function validateResourceIdentifier(identifier, context) {
       test: 'Resource Identifier Structure',
       status: 'passed',
       context,
-      message: `Resource identifier (type: "${identifier.type}", id: "${identifier.id}") is valid`
+      message: `Resource identifier (type: "${identifierObj.type}", id: "${identifierObj.id}") is valid`
     })
   }
 
@@ -611,14 +654,15 @@ function validateResourceIdentifier(identifier, context) {
 
 /**
  * Validates relationship links object
- * @param {any} links - The links object to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param links - The links object to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateRelationshipLinks(links, context) {
-  const results = {
+function validateRelationshipLinks(links: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -632,11 +676,12 @@ function validateRelationshipLinks(links, context) {
     return results
   }
 
-  const linkKeys = Object.keys(links)
-  
+  const linksObj = links as Record<string, unknown>
+  const linkKeys = Object.keys(linksObj)
+
   // A relationship links object must contain at least one of: self, related, or pagination links
-  const hasSelf = Object.prototype.hasOwnProperty.call(links, 'self')
-  const hasRelated = Object.prototype.hasOwnProperty.call(links, 'related')
+  const hasSelf = Object.prototype.hasOwnProperty.call(linksObj, 'self')
+  const hasRelated = Object.prototype.hasOwnProperty.call(linksObj, 'related')
   const hasPagination = linkKeys.some(key => ['first', 'last', 'prev', 'next'].includes(key))
 
   if (!hasSelf && !hasRelated && !hasPagination) {
@@ -650,7 +695,7 @@ function validateRelationshipLinks(links, context) {
 
   // Validate self link if present
   if (hasSelf) {
-    const selfValidation = validateLinkValue(links.self, `${context}.links.self`)
+    const selfValidation = validateLinkValue(linksObj.self, `${context}.links.self`)
     results.details.push(...selfValidation.details)
     if (!selfValidation.valid) {
       results.valid = false
@@ -660,7 +705,7 @@ function validateRelationshipLinks(links, context) {
 
   // Validate related link if present
   if (hasRelated) {
-    const relatedValidation = validateLinkValue(links.related, `${context}.links.related`)
+    const relatedValidation = validateLinkValue(linksObj.related, `${context}.links.related`)
     results.details.push(...relatedValidation.details)
     if (!relatedValidation.valid) {
       results.valid = false
@@ -671,8 +716,8 @@ function validateRelationshipLinks(links, context) {
   // Validate pagination links for to-many relationships
   const paginationLinks = ['first', 'last', 'prev', 'next']
   for (const paginationLink of paginationLinks) {
-    if (Object.prototype.hasOwnProperty.call(links, paginationLink)) {
-      const paginationValidation = validateLinkValue(links[paginationLink], `${context}.links.${paginationLink}`)
+    if (Object.prototype.hasOwnProperty.call(linksObj, paginationLink)) {
+      const paginationValidation = validateLinkValue(linksObj[paginationLink], `${context}.links.${paginationLink}`)
       results.details.push(...paginationValidation.details)
       if (!paginationValidation.valid) {
         results.valid = false
@@ -695,14 +740,15 @@ function validateRelationshipLinks(links, context) {
 
 /**
  * Validates a single link value (string or link object)
- * @param {any} link - The link value to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param link - The link value to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateLinkValue(link, context) {
-  const results = {
+function validateLinkValue(link: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -744,15 +790,17 @@ function validateLinkValue(link, context) {
       }
     }
   } else if (typeof link === 'object' && !Array.isArray(link)) {
+    const linkObj = link as Record<string, unknown>
+
     // Link object must have href member
-    if (!Object.prototype.hasOwnProperty.call(link, 'href')) {
+    if (!Object.prototype.hasOwnProperty.call(linkObj, 'href')) {
       results.valid = false
       results.errors.push({
         test: 'Link Object Structure',
         context,
         message: 'Link object must have an "href" member'
       })
-    } else if (typeof link.href !== 'string' || link.href.length === 0) {
+    } else if (typeof linkObj.href !== 'string' || linkObj.href.length === 0) {
       results.valid = false
       results.errors.push({
         test: 'Link Object Structure',
@@ -761,8 +809,8 @@ function validateLinkValue(link, context) {
       })
     } else {
       // Validate href URL format
-      if (!isValidUrl(link.href)) {
-        const urlError = getUrlValidationError(link.href)
+      if (!isValidUrl(linkObj.href)) {
+        const urlError = getUrlValidationError(linkObj.href)
         results.valid = false
         results.errors.push({
           test: 'Link Object URL Format',
@@ -780,8 +828,8 @@ function validateLinkValue(link, context) {
     }
 
     // Validate optional meta member
-    if (Object.prototype.hasOwnProperty.call(link, 'meta')) {
-      if (typeof link.meta !== 'object' || link.meta === null || Array.isArray(link.meta)) {
+    if (Object.prototype.hasOwnProperty.call(linkObj, 'meta')) {
+      if (typeof linkObj.meta !== 'object' || linkObj.meta === null || Array.isArray(linkObj.meta)) {
         results.valid = false
         results.errors.push({
           test: 'Link Object Meta',
@@ -799,10 +847,10 @@ function validateLinkValue(link, context) {
     }
 
     // Check for additional members beyond href and meta
-    const linkKeys = Object.keys(link)
+    const linkKeys = Object.keys(linkObj)
     const allowedMembers = ['href', 'meta']
     const additionalMembers = linkKeys.filter(key => !allowedMembers.includes(key))
-    
+
     if (additionalMembers.length > 0) {
       results.valid = false
       results.errors.push({
@@ -832,14 +880,15 @@ function validateLinkValue(link, context) {
 
 /**
  * Validates a member name follows JSON:API naming conventions
- * @param {string} memberName - The member name to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param memberName - The member name to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-export function validateMemberName(memberName, context) {
-  const results = {
+export function validateMemberName(memberName: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -863,11 +912,11 @@ export function validateMemberName(memberName, context) {
     return results
   }
 
-  // JSON:API v1.1 spec: Member names MUST contain only lowercase letters (a-z), 
+  // JSON:API v1.1 spec: Member names MUST contain only lowercase letters (a-z),
   // digits (0-9), hyphen (-), and underscore (_) characters.
   // Member names MUST start and end with a "globally allowed character" (a-z, 0-9).
   const memberNamePattern = /^[a-z0-9][a-z0-9_-]*[a-z0-9]$|^[a-z0-9]$/
-  
+
   if (!memberNamePattern.test(memberName)) {
     results.valid = false
     results.errors.push({
@@ -913,14 +962,15 @@ export function validateMemberName(memberName, context) {
 
 /**
  * Validates the 'links' member of a resource object
- * @param {any} links - The links object to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param links - The links object to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateResourceLinksMember(links, context) {
-  const results = {
+function validateResourceLinksMember(links: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -934,7 +984,9 @@ function validateResourceLinksMember(links, context) {
     return results
   }
 
-  const linkKeys = Object.keys(links)
+  const linksObj = links as Record<string, unknown>
+  const linkKeys = Object.keys(linksObj)
+
   if (linkKeys.length === 0) {
     results.errors.push({
       test: 'Resource Links Member',
@@ -949,8 +1001,8 @@ function validateResourceLinksMember(links, context) {
   let allLinksValid = true
 
   for (const linkName of linkKeys) {
-    const linkValue = links[linkName]
-    
+    const linkValue = linksObj[linkName]
+
     if (linkName === 'self') {
       hasSelfLink = true
     }
@@ -982,14 +1034,15 @@ function validateResourceLinksMember(links, context) {
 
 /**
  * Validates the 'meta' member of a resource object
- * @param {any} meta - The meta object to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param meta - The meta object to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateMetaMember(meta, context) {
-  const results = {
+function validateMetaMember(meta: unknown, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -1003,8 +1056,9 @@ function validateMetaMember(meta, context) {
     return results
   }
 
-  const metaKeys = Object.keys(meta)
-  
+  const metaObj = meta as Record<string, unknown>
+  const metaKeys = Object.keys(metaObj)
+
   // Validate each meta member name follows JSON:API naming conventions
   for (const metaName of metaKeys) {
     const nameValidation = validateMemberName(metaName, `${context}.meta.${metaName}`)
@@ -1027,12 +1081,12 @@ function validateMetaMember(meta, context) {
 
 /**
  * Validates that resource object doesn't use reserved member names inappropriately
- * @param {Object} resource - The resource object to validate
- * @param {string} context - Context for error messages
- * @returns {Object} Validation result
+ * @param resource - The resource object to validate
+ * @param context - Context for error messages
+ * @returns Validation result
  */
-function validateMemberNames(resource, context) {
-  const results = {
+function validateMemberNames(resource: Record<string, unknown>, context: string): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -1041,10 +1095,10 @@ function validateMemberNames(resource, context) {
 
   const resourceKeys = Object.keys(resource)
   const allowedMembers = ['type', 'id', 'attributes', 'relationships', 'links', 'meta']
-  
+
   // Check for additional members beyond the standard ones
   const additionalMembers = resourceKeys.filter(key => !allowedMembers.includes(key))
-  
+
   if (additionalMembers.length > 0) {
     results.warnings.push({
       test: 'Resource Member Names',
@@ -1065,26 +1119,39 @@ function validateMemberNames(resource, context) {
 
 /**
  * Basic check if an object has the minimal structure of a resource object
- * @param {any} obj - Object to check
- * @returns {boolean} True if has basic resource object structure
+ * @param obj - Object to check
+ * @returns True if has basic resource object structure
  */
-export function isValidResourceObject(obj) {
-  return obj !== null &&
-         typeof obj === 'object' &&
-         !Array.isArray(obj) &&
-         typeof obj.type === 'string' &&
-         obj.type.length > 0 &&
-         (Object.prototype.hasOwnProperty.call(obj, 'id') ? typeof obj.id === 'string' && obj.id.length > 0 : true)
+export function isValidResourceObject(obj: unknown): boolean {
+  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+    return false
+  }
+
+  const resourceObj = obj as Record<string, unknown>
+
+  // Check type is a non-empty string
+  if (typeof resourceObj.type !== 'string' || resourceObj.type.length === 0) {
+    return false
+  }
+
+  // Check id is a non-empty string if present
+  if (Object.prototype.hasOwnProperty.call(obj, 'id')) {
+    if (typeof resourceObj.id !== 'string' || resourceObj.id.length === 0) {
+      return false
+    }
+  }
+
+  return true
 }
 
 /**
  * Validates an array of resource objects
- * @param {any[]} resources - Array of resource objects to validate
- * @param {Object} options - Validation options
- * @returns {Object} Combined validation result
+ * @param resources - Array of resource objects to validate
+ * @param options - Validation options
+ * @returns Combined validation result
  */
-export function validateResourceCollection(resources, options = {}) {
-  const results = {
+export function validateResourceCollection(resources: unknown, options: ResourceValidationOptions = {}): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -1121,7 +1188,7 @@ export function validateResourceCollection(resources, options = {}) {
       results.valid = false
       results.errors.push(...resourceValidation.errors)
     }
-    if (resourceValidation.warnings) {
+    if (resourceValidation.warnings.length > 0) {
       results.warnings.push(...resourceValidation.warnings)
     }
   }
