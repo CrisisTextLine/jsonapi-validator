@@ -1,6 +1,6 @@
 /**
- * JsonApiObjectValidator.js
- * 
+ * JsonApiObjectValidator.ts
+ *
  * Validates JSON:API object extensions and profiles.
  * Based on specification: https://jsonapi.org/format/1.1/#document-jsonapi-object
  */
@@ -8,13 +8,39 @@
 import { validateMemberName } from './ResourceValidator.js'
 import { isValidUrl } from '../utils/UrlValidator.js'
 
+interface ValidationError {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationWarning {
+  test: string
+  message: string
+  context?: string
+}
+
+interface ValidationDetail {
+  test: string
+  status: 'passed' | 'failed' | 'warning'
+  message: string
+  context?: string
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: ValidationWarning[]
+  details: ValidationDetail[]
+}
+
 /**
  * Validates JSON:API object with extension and profile support
- * @param {any} jsonapi - The jsonapi object to validate
- * @returns {Object} Validation result with success/failure and details
+ * @param jsonapi - The jsonapi object to validate
+ * @returns Validation result with success/failure and details
  */
-export function validateJsonApiObjectExtended(jsonapi) {
-  const results = {
+export function validateJsonApiObjectExtended(jsonapi: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -30,14 +56,16 @@ export function validateJsonApiObjectExtended(jsonapi) {
     return results
   }
 
+  const jsonapiObj = jsonapi as Record<string, unknown>
+
   // Check for known members
   const knownMembers = ['version', 'meta', 'ext', 'profile']
-  const presentMembers = Object.keys(jsonapi)
+  const presentMembers = Object.keys(jsonapiObj)
   const unknownMembers = presentMembers.filter(member => !knownMembers.includes(member))
 
   // Validate version member
-  if (Object.prototype.hasOwnProperty.call(jsonapi, 'version')) {
-    const versionValidation = validateVersionMember(jsonapi.version)
+  if (Object.prototype.hasOwnProperty.call(jsonapiObj, 'version')) {
+    const versionValidation = validateVersionMember(jsonapiObj.version)
     results.details.push(...versionValidation.details)
     if (!versionValidation.valid) {
       results.valid = false
@@ -45,9 +73,9 @@ export function validateJsonApiObjectExtended(jsonapi) {
     }
   }
 
-  // Validate meta member  
-  if (Object.prototype.hasOwnProperty.call(jsonapi, 'meta')) {
-    const metaValidation = validateJsonApiMeta(jsonapi.meta)
+  // Validate meta member
+  if (Object.prototype.hasOwnProperty.call(jsonapiObj, 'meta')) {
+    const metaValidation = validateJsonApiMeta(jsonapiObj.meta)
     results.details.push(...metaValidation.details)
     if (!metaValidation.valid) {
       results.valid = false
@@ -56,8 +84,8 @@ export function validateJsonApiObjectExtended(jsonapi) {
   }
 
   // Validate ext member (extensions)
-  if (Object.prototype.hasOwnProperty.call(jsonapi, 'ext')) {
-    const extValidation = validateExtensionsMember(jsonapi.ext)
+  if (Object.prototype.hasOwnProperty.call(jsonapiObj, 'ext')) {
+    const extValidation = validateExtensionsMember(jsonapiObj.ext)
     results.details.push(...extValidation.details)
     if (!extValidation.valid) {
       results.valid = false
@@ -69,8 +97,8 @@ export function validateJsonApiObjectExtended(jsonapi) {
   }
 
   // Validate profile member
-  if (Object.prototype.hasOwnProperty.call(jsonapi, 'profile')) {
-    const profileValidation = validateProfileMember(jsonapi.profile)
+  if (Object.prototype.hasOwnProperty.call(jsonapiObj, 'profile')) {
+    const profileValidation = validateProfileMember(jsonapiObj.profile)
     results.details.push(...profileValidation.details)
     if (!profileValidation.valid) {
       results.valid = false
@@ -90,7 +118,7 @@ export function validateJsonApiObjectExtended(jsonapi) {
       const nameValidation = validateMemberName(memberName, `jsonapi.${memberName}`)
       if (!nameValidation.valid) {
         results.valid = false
-        results.errors.push(...nameValidation.errors.map(error => ({
+        results.errors.push(...(nameValidation.errors as any).map((error: ValidationError) => ({
           ...error,
           test: 'JSON:API Object Extension Names'
         })))
@@ -111,13 +139,14 @@ export function validateJsonApiObjectExtended(jsonapi) {
 
 /**
  * Validates the version member of a JSON:API object
- * @param {any} version - The version value to validate
- * @returns {Object} Validation result
+ * @param version - The version value to validate
+ * @returns Validation result
  */
-function validateVersionMember(version) {
-  const results = {
+function validateVersionMember(version: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -160,13 +189,14 @@ function validateVersionMember(version) {
 
 /**
  * Validates the meta member of a JSON:API object
- * @param {any} meta - The meta value to validate
- * @returns {Object} Validation result
+ * @param meta - The meta value to validate
+ * @returns Validation result
  */
-function validateJsonApiMeta(meta) {
-  const results = {
+function validateJsonApiMeta(meta: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -179,15 +209,16 @@ function validateJsonApiMeta(meta) {
     return results
   }
 
-  const metaKeys = Object.keys(meta)
-  
+  const metaObj = meta as Record<string, unknown>
+  const metaKeys = Object.keys(metaObj)
+
   // Validate each meta member name follows JSON:API naming conventions
   for (const metaName of metaKeys) {
     const nameValidation = validateMemberName(metaName, `jsonapi.meta.${metaName}`)
     results.details.push(...nameValidation.details)
     if (!nameValidation.valid) {
       results.valid = false
-      results.errors.push(...nameValidation.errors)
+      results.errors.push(...(nameValidation.errors as any))
     }
   }
 
@@ -202,11 +233,11 @@ function validateJsonApiMeta(meta) {
 
 /**
  * Validates the ext member (extensions) of a JSON:API object
- * @param {any} ext - The ext value to validate
- * @returns {Object} Validation result
+ * @param ext - The ext value to validate
+ * @returns Validation result
  */
-function validateExtensionsMember(ext) {
-  const results = {
+function validateExtensionsMember(ext: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
     warnings: [],
@@ -222,8 +253,9 @@ function validateExtensionsMember(ext) {
     return results
   }
 
-  const extensionNames = Object.keys(ext)
-  
+  const extObj = ext as Record<string, unknown>
+  const extensionNames = Object.keys(extObj)
+
   if (extensionNames.length === 0) {
     results.warnings.push({
       test: 'JSON:API Extensions Member',
@@ -234,8 +266,8 @@ function validateExtensionsMember(ext) {
 
   // Validate each extension
   for (const extensionName of extensionNames) {
-    const extensionValue = ext[extensionName]
-    
+    const extensionValue = extObj[extensionName]
+
     // Validate extension name format
     if (!isValidExtensionName(extensionName)) {
       results.valid = false
@@ -282,13 +314,14 @@ function validateExtensionsMember(ext) {
 
 /**
  * Validates the profile member of a JSON:API object
- * @param {any} profile - The profile value to validate
- * @returns {Object} Validation result
+ * @param profile - The profile value to validate
+ * @returns Validation result
  */
-function validateProfileMember(profile) {
-  const results = {
+function validateProfileMember(profile: unknown): ValidationResult {
+  const results: ValidationResult = {
     valid: true,
     errors: [],
+    warnings: [],
     details: []
   }
 
@@ -350,10 +383,10 @@ function validateProfileMember(profile) {
 
 /**
  * Validates if a string is a valid extension name
- * @param {string} name - Extension name to validate
- * @returns {boolean} True if valid extension name
+ * @param name - Extension name to validate
+ * @returns True if valid extension name
  */
-function isValidExtensionName(name) {
+function isValidExtensionName(name: string): boolean {
   if (typeof name !== 'string' || name.length === 0) {
     return false
   }
