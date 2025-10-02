@@ -11,7 +11,7 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const CLI_PATH = join(__dirname, '..', 'cli.js');
+const CLI_PATH = join(__dirname, '..', '..', 'cli.js');
 const MOCK_SERVER_URL = 'http://localhost:3001';
 
 // Helper function to run CLI command

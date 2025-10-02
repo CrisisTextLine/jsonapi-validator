@@ -174,9 +174,14 @@ function formatResults(results: ValidationReport, options: CliOptions): string {
   // Summary
   const summary = results.summary;
   const hasFailures = summary.failed > 0;
+  const hasError = results.metadata.status === 'error';
   const icon = hasFailures ? '❌' : summary.warnings > 0 ? '⚠️' : '✅';
 
-  output += `${icon} Validation ${hasFailures ? 'Failed' : 'Completed'}\n`;
+  if (hasError) {
+    output += `${icon} Error: Validation Failed\n`;
+  } else {
+    output += `${icon} Validation ${hasFailures ? 'Failed' : 'Completed'}\n`;
+  }
   output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   output += `  Passed:   ${summary.passed}\n`;
   output += `  Failed:   ${summary.failed}\n`;
@@ -234,7 +239,7 @@ async function main(): Promise<void> {
 
     // For JSON output, write directly to stdout without extra formatting
     if (options.json) {
-      process.stdout.write(output);
+      console.log(output);
     } else {
       console.log(output);
     }
@@ -243,9 +248,19 @@ async function main(): Promise<void> {
     process.exit(results.summary.failed > 0 ? 1 : 0);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`\n❌ Error: ${errorMessage}\n`);
-    if (options.verbose && error instanceof Error) {
-      console.error(error.stack);
+
+    // For JSON mode, output error as JSON
+    if (options.json) {
+      console.log(JSON.stringify({
+        error: errorMessage,
+        status: 'error',
+        summary: { total: 0, passed: 0, failed: 1, warnings: 0 }
+      }, null, 2));
+    } else {
+      console.error(`\n❌ Error: ${errorMessage}\n`);
+      if (options.verbose && error instanceof Error) {
+        console.error(error.stack);
+      }
     }
     process.exit(1);
   }

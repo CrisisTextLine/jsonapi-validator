@@ -2,7 +2,8 @@
 
 /**
  * CLI Wrapper for TypeScript execution
- * This file wraps the TypeScript CLI and runs it using tsx
+ *
+ * This wrapper uses tsx to run the TypeScript CLI directly
  */
 
 import { spawn } from 'child_process';
@@ -11,16 +12,18 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Run the TypeScript CLI using tsx
-const tsxPath = join(__dirname, 'node_modules', '.bin', 'tsx');
 const cliPath = join(__dirname, 'cli.ts');
 
-const child = spawn(tsxPath, [cliPath, ...process.argv.slice(2)], {
-  stdio: 'inherit',
-  shell: true
+// Use tsx to execute the TypeScript CLI
+const proc = spawn('npx', ['tsx', cliPath, ...process.argv.slice(2)], {
+  stdio: 'inherit'
 });
 
-child.on('exit', (code) => {
+proc.on('exit', (code) => {
   process.exit(code || 0);
+});
+
+proc.on('error', (err) => {
+  console.error('Failed to start CLI:', err);
+  process.exit(1);
 });
